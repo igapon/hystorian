@@ -1,4 +1,4 @@
-from igor import binarywave
+from igor2 import binarywave
 import h5py
 import numpy as np
 
@@ -12,6 +12,7 @@ def ibw2hdf5(filename, filepath=None):
         label = label[0]  # Remove the unnecessary inception
 
         # Correct the duplicate letters
+        label = [i.decode("UTF-8") for i in label if len(i) > 0]
         label = [x.split("Trace")[0] + "Trace" if "Trace" in x else x for x in label]
         label = [x.split("Retrace")[0] + "Retrace" if "Retrace" in x else x for x in label]
         label = [x.encode() for x in label if len(x) > 0]

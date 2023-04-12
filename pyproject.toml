@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "hystorian"
+version = "2.0.0"
+description = "a generic materials science data analysis Python package built with processing traceability, reproducibility, and archival ability at its core."
+authors = ["Loic Musy <loic.musy@unige.ch>", "Ralph Bulanadi <ralph.bulanadi@unige.ch>"]
+license = "Creative Commons Attribution 4.0 International"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+h5py = "^3.8.0"
+numpy = "^1.24.2"
+igor = "^0.3"
+pillow = "^9.5.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

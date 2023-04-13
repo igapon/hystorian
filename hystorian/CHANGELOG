@@ -1,3 +1,11 @@
+## [1.0.5] - 2022-08-08
+### Added
+
+### Changed
+- Updated threshold_noise function (from kligonde)
+  Replaced signal's implementation of median filter with ndimage's instead (both part of SciPy library)
+### Removed
+
 ## [1.0.4] - 2022-08-08
 ### Added
 

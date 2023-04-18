@@ -1,7 +1,19 @@
 import csv
+import pathlib
 
 import h5py
 import numpy as np
+
+
+def extract_csv(filename, delimiter=","):
+    with open(filename) as csvfile:
+        data = csv.reader(csvfile, delimiter)
+        data = list(data)
+        header = data[0]
+        data = data[1:]
+        np_data = np.array(data).astype("S")
+
+    return data, header
 
 
 def csv2hdf5(filename, filepath=None):

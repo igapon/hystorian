@@ -104,6 +104,47 @@ class FileHandler:
         self,
         function: callable,
         inputs: list[str] | str,
+        output_names: list[str] | str | None = None,
+        increment_proc: bool = True,
+        **kwargs,
+    ):
+        def convert_to_list(inputs):
+            if isinstance(inputs, list):
+                return inputs
+            return [inputs]
+
+        if output_names is None:
+            output_names = inputs[0].rsplit("/", 1)[1]
+        output_names = convert_to_list(output_names)
+
+        inputs = convert_to_list(inputs)
+        result = function(*inputs, **kwargs)
+
+        if result is None:
+            return None
+        if not isinstance(result, tuple):
+            result = tuple([result])
+
+        if len(output_names) != len(result):
+            raise Exception("Error: Unequal amount of outputs and output names")
+
+        num_proc = len(self.structure["process"].keys())
+
+        if increment_proc or f"{str(num_proc).zfill(3)}-{function.__name__}" not in self.structure["process"].keys():
+            num_proc += 1
+
+        out_folder_location = f"{'process'}/{str(num_proc).zfill(3)}-{function.__name__}"
+
+        for name, data in zip(output_names, result):
+            self[f"{out_folder_location}/{name}"] = data
+
+        self._write_generic_attributes(f"{out_folder_location}/{name}", input, name, function)
+        self._write_kwargs_as_attributes(f"{out_folder_location}/{name}", function, kwargs, first_kwarg=len(input))
+
+    def apply(
+        self,
+        function: callable,
+        inputs: list[str] | str,
         folder_names: list[str] | str | None = None,
         output_names: list[str] | str | None = None,
         use_attrs: list[str] | str | None = None,
@@ -120,11 +161,11 @@ class FileHandler:
         inputs = convert_to_list(inputs)
 
         ## TO DO
+        # Implement smart path searching
         inputs = self._path_search(inputs, repeat)
         inputs = list(map(list, zip(*inputs)))
-        # Implement smart path searching
+
         for input in inputs:
-            print(input)
             if output_names is None:
                 output_names = input[0].rsplit("/", 1)[1]
             output_names = convert_to_list(output_names)
@@ -196,7 +237,6 @@ class FileHandler:
     def _write_generic_attributes(
         self, out_folder_location: str, in_paths: list[str] | str, output_name: str, function: callable
     ) -> None:
-
         if not isinstance(in_paths, list):
             in_paths = [in_paths]
 
@@ -245,7 +285,6 @@ class FileHandler:
             signature = inspect.signature(func).parameters
             var_names = list(signature.keys())[first_kwarg:]
             for key in var_names:
-
                 if key in all_variables:
                     value = all_variables[key]
                 elif isinstance(signature[key].default, np._globals._NoValueType):
@@ -299,7 +338,6 @@ class FileHandler:
             return tuple(dictionary.keys())
 
     def _path_search(self, criterion: list[str] | str, repeat: str | None = None) -> list[list[str]]:
-
         file_structure = utils.dict_to_list(self.structure)
 
         if not isinstance(criterion, list):

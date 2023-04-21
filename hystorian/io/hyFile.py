@@ -1,7 +1,7 @@
 import h5py
 import pathlib
 import warnings
-from . import ibw_files
+from . import ibw_files, gsf_files
 
 
 class hyFile:
@@ -47,26 +47,23 @@ class hyFile:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, traceback) -> None:
         if self.file:
             self.file.close
 
         if value is not None:
             warnings.warn(f"File closed with the following error: {type} - {value} \n {traceback}")
 
-    def __getitem__(self, path: str = ""):
+    def __getitem__(self, path: str = "") -> h5py.Group | h5py.Dataset:
         if path == "":
-            return self.file.keys()
+            return self.file
         else:
-            if isinstance(self.file[path], h5py.Group):
-                return self.file[path].keys()
-            else:
-                return self.file[path]
+            return self.file[path]
 
-    def __setitem__(self, data: tuple[str, any], overwrite=True):
+    def __setitem__(self, data: tuple[str, any], overwrite=True) -> None:
         self._create_dataset(data, overwrite)
 
-    def __delitem__(self, path: str):
+    def __delitem__(self, path: str) -> None:
         if path not in self.file:
             raise KeyError("Path does not exist in the file.")
         del self.file[path]
@@ -74,10 +71,73 @@ class hyFile:
     def __contains__(self, path: str) -> bool:
         return path in self.file
 
+    def read(self, path: str = ""):
+        if path == "":
+            return self.file.keys()
+        else:
+            if isinstance(self.file[path], h5py.Group):
+                return self.file[path].keys()
+            else:
+                return self.file[path][()]
+
+    def extract_data(self, path: str):
+        conversion_fcts = {
+            ".gsf": gsf_files.extract_gsf,
+            ".ibw": ibw_files.extract_ibw,
+        }
+
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+
+        if path.suffix in conversion_fcts:
+            data, metadata, attributes = conversion_fcts[path.suffix](path)
+            self._write_extracted_data(path, data, metadata, attributes)
+        else:
+            raise TypeError(f"{path.suffix} file don't have a conversion function.")
+
+    def apply(
+        self,
+        function: callable,
+        inputs: list[str] | str,
+        output_names: list[str] | str | None = None,
+        increment_proc: bool = True,
+        **kwargs,
+    ):
+        def convert_to_list(inputs):
+            if isinstance(inputs, list):
+                return inputs
+            return [inputs]
+
+        inputs = convert_to_list(inputs)
+
+        if output_names is None:
+            output_names = inputs[0].rsplit("/", 1)[1]
+        output_names = convert_to_list(output_names)
+
+        result = function(*inputs, **kwargs)
+
+        if result is None:
+            return None
+        if not isinstance(result, tuple):
+            result = tuple([result])
+
+        if len(output_names) != len(result):
+            raise Exception("Error: Unequal amount of outputs and output names")
+
+        num_proc = len(self.read("process"))
+
+        if increment_proc or f"{str(num_proc).zfill(3)}-{function.__name__}" not in self.read("process"):
+            num_proc += 1
+
+        out_folder_location = f"{'process'}/{str(num_proc).zfill(3)}-{function.__name__}"
+
+        for name, data in zip(output_names, result):
+            self._create_dataset((f"{out_folder_location}/{name}", data))
+
     def _require_group(self, name: str):
         self.file.require_group(name)
 
-    def _create_dataset(self, data: tuple[str, any], overwrite=True):
+    def _create_dataset(self, data: tuple[str, any], overwrite=True) -> None:
         if data[0] in self.file:
             if overwrite:
                 del self.file[data[0]]
@@ -86,17 +146,7 @@ class hyFile:
 
         self.file.create_dataset(data[0], data=data[1])
 
-    def extract_data(self, path):
-        conversion_fcts = {"ibw": ibw_files.extract_ibw}
-
-        if isinstance(path, str):
-            path = pathlib.Path(path)
-
-        if path.suffix in conversion_fcts:
-            data, metadata, attributes = conversion_fcts[path.suffix()](path)
-            self._write_extracted_data(path, data, metadata, attributes)
-
-    def _write_extracted_data(self, path, data, metadata, attributes):
+    def _write_extracted_data(self, path, data, metadata, attributes) -> None:
         self._require_group(f"datasets/{path.stem}")
 
         for d_key, d_value in data.items():
@@ -105,4 +155,8 @@ class hyFile:
             for attr in attributes[d_key].items():
                 self.attrs[f"datasets/{path.stem}/{d_key}"] = attr
 
-        self._create_dataset((f"metadata/{path.stem}", metadata))
+        if isinstance(metadata, dict):
+            for key in metadata:
+                self._create_dataset((f"metadata/{path.stem}/{key}", metadata[key]))
+        else:
+            self._create_dataset((f"metadata/{path.stem}", metadata))

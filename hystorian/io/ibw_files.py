@@ -1,7 +1,8 @@
-from igor2 import binarywave
+import pathlib
+
 import h5py
 import numpy as np
-import pathlib
+from igor2 import binarywave
 
 # ==========================================
 # IBW conversion

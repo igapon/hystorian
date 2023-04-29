@@ -4,7 +4,7 @@ import warnings
 from . import ibw_files, gsf_files
 
 
-class hyFile:
+class HyFile:
     class Attributes:
         def __init__(self, file):
             self.file = file

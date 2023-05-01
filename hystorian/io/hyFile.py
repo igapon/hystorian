@@ -119,7 +119,7 @@ class HyFile:
     def read(self, path: Optional[str] = None) -> list[str] | h5py.Dataset | h5py.Datatype:
         """read
         Wrapper around the __getitem__ of h5py. Directly returns the keys of the sub-groups if the path lead to an h5py.Group, otherwise directly load the dataset.
-        This allow to get the keys to the folders without calling .keys(), therefore the way to call the keys or the data are the same.
+        This allow to get a list of keys to the folders without calling .keys(), therefore the way to call the keys or the data are the same.
 
         Parameters
         ----------
@@ -228,7 +228,8 @@ class HyFile:
         new_attrs["time"] = str(datetime.now())
         new_attrs["source"] = in_paths
 
-        self.attrs[out_folder_location] = new_attrs
+        for k, v in new_attrs:
+            self.attrs[out_folder_location] = (k, v)
 
     def _write_kwargs_as_attributes(
         self, path: str, func: Callable, all_variables: dict[str, Any], first_kwarg: int = 1
@@ -258,7 +259,8 @@ class HyFile:
                     RuntimeWarning("Attribute was not able to be saved, probably because the attribute is too large")
                     attr_dict[f"kwargs_{key}"] = "None"
 
-        self.attrs[path] = attr_dict
+        for k, v in attr_dict:
+            self.attrs[path] = (k, v)
 
     def _require_group(self, name: str):
         self.file.require_group(name)

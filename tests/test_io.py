@@ -9,7 +9,7 @@ from igor2 import binarywave
 
 from hystorian.io import hyFile
 
-filepath = pathlib.Path("test_files/test.hdf5")
+filepath = pathlib.Path("tests/test_files/test.hdf5")
 
 
 @pytest.fixture(autouse=True)
@@ -102,7 +102,7 @@ class TestHyFileConversion:
     """
 
     def test_extraction_gsf(self):
-        path = pathlib.Path("test_files/raw_files/test_gsf.gsf")
+        path = pathlib.Path("tests/test_files/raw_files/test_gsf.gsf")
         with hyFile.HyFile(filepath, "r+") as f:
             f.extract_data(path)
 

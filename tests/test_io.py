@@ -1,4 +1,3 @@
-# pylint: skip-file
 import os
 import pathlib
 import unittest
@@ -89,9 +88,8 @@ class TestHyFileConversion:
             assert f[f"datasets/{fake_path}/b"].attrs["size"] == 200
             assert (f[f"datasets/{fake_path}/b"] == np.arange(200)).all()
 
-    """
     def test_extraction_ibw(self):
-        path = pathlib.Path("test_files/raw_files/test_ibw.ibw")
+        path = pathlib.Path("tests/test_files/raw_files/test_ibw.ibw")
         with hyFile.HyFile(filepath, "r+") as f:
             f.extract_data(path)
 
@@ -99,7 +97,6 @@ class TestHyFileConversion:
             metadata = tmpdata["note"]
 
             assert f.read(f"metadata/{path.stem}") == metadata
-    """
 
     def test_extraction_gsf(self):
         path = pathlib.Path("tests/test_files/raw_files/test_gsf.gsf")

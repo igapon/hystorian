@@ -1,4 +1,5 @@
-import pathlib
+from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -8,7 +9,22 @@ from igor2 import binarywave
 # IBW conversion
 
 
-def extract_ibw(filename):
+def extract_ibw(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """extract_ibw uses igor2 (https://github.com/AFM-analysis/igor2/) to convert ibw files from Asylum AFM.
+
+    Parameters
+    ----------
+    filename : Path
+        The name of the input file to be converted
+
+    Returns
+    -------
+    data : dict[str, Any]
+    metadata : dict[str, Any]
+    attributes : dict[str, Any]]
+        The extra saved attributes are: the scale (in m/px), the image offset and the units of each channel.
+    """
+
     def correct_label(label):
         label = [x for x in label if x]  # Remove the empty lists
         label = label[0]  # Remove the unnecessary inception
@@ -20,9 +36,6 @@ def extract_ibw(filename):
         label = [x.encode() for x in label if len(x) > 0]
 
         return label
-
-    if isinstance(filename, str):
-        filename = pathlib.Path(filename)
 
     tmpdata = binarywave.load(filename)["wave"]
 
@@ -53,7 +66,7 @@ def extract_ibw(filename):
         attributes[k]["name"] = k.decode("utf8")
         attributes[k]["size"] = (fastsize, slowsize)
         attributes[k]["offset"] = (xoffset, yoffset)
-        # attributes[k]["path"] = f"datasets/{dataset_name}/" + str(k).split("'")[1]
+
         if "Phase" in str(k):
             attributes[k]["unit"] = ("m", "m", "deg")
         elif "Amplitude" in str(k):
@@ -62,4 +75,5 @@ def extract_ibw(filename):
             attributes[k]["unit"] = ("m", "m", "m")
         else:
             attributes[k]["unit"] = ("m", "m", "unknown")
+
     return data, metadata, attributes

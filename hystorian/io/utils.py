@@ -1,7 +1,9 @@
+from pathlib import Path
+
 import h5py
 
 
-def create_empty_hdf5(filepath):
+def create_empty_hdf5(filepath: Path):
     with h5py.File(filepath.with_suffix(".hdf5"), "w") as f:
         f.create_group("metadata")
         f["metadata"].create_dataset(filepath.stem, dtype=h5py.Empty(h5py.string_dtype(encoding="utf-8")))

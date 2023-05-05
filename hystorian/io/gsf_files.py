@@ -1,15 +1,29 @@
+from pathlib import Path
+from typing import Any
+
 import h5py
 import numpy as np
 
 
-def extract_gsf(filename):
-    """Read a Gwyddion Simple Field 1.0 file format
+def extract_gsf(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """extract_gsf Read a Gwyddion Simple Field 1.0 file format
     http://gwyddion.net/documentation/user-guide-en/gsf.html
-    Args:
-        filename (string): the name of the output (any extension will be replaced)
-    Returns:
-        metadata (dict): additional metadata to be included in the file
-        data (2darray): an arbitrary sized 2D array of arbitrary numeric type
+
+    Parameters
+    ----------
+    filename : Path
+        The name of the input file to be converted
+
+    Returns
+    -------
+    data : dict[str, Any]
+    metadata : dict[str, Any]
+    attributes : dict[str, Any]]
+
+    Raises
+    ------
+    ValueError
+        Returned if the header of the file is not "Gwyddion Simple Field 1.0", thus indicating that the gwyddion version used to generated the file is not supported.
     """
     # if filename.rpartition(".")[1] == ".":
     #    filename = filename[0 : filename.rfind(".")]

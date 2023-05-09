@@ -4,8 +4,10 @@ from typing import Any
 import h5py
 import numpy as np
 
+from .utils import HyConvertedData
 
-def extract_gsf(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+
+def extract_gsf(filename: Path) -> HyConvertedData:
     """extract_gsf Read a Gwyddion Simple Field 1.0 file format
     http://gwyddion.net/documentation/user-guide-en/gsf.html
 
@@ -73,5 +75,5 @@ def extract_gsf(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[st
         attributes[name]["offset"] = (metadata["XOffset"], metadata["YOffset"])
     if "WavenumberScaling" in metadata:
         attributes[name]["WavenumberScaling"] = float(metadata["Neaspec_WavenumberScaling"])
-
-    return data, metadata, attributes
+    extracted = HyConvertedData(data, metadata, attributes)
+    return extracted

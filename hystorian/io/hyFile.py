@@ -9,7 +9,8 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 
-from . import gsf_files, ibw_files
+from . import ardf_files, gsf_files, ibw_files
+from .utils import HyConvertedData
 
 
 class HyFile:
@@ -121,6 +122,7 @@ class HyFile:
             If the file you pass through path does not have a conversion function, will raise an error.
         """
         conversion_functions = {
+            ".ardf": ardf_files.extract_ardf,
             ".gsf": gsf_files.extract_gsf,
             ".ibw": ibw_files.extract_ibw,
         }
@@ -129,8 +131,9 @@ class HyFile:
             path = Path(path)
 
         if path.suffix in conversion_functions:
-            data, metadata, attributes = conversion_functions[path.suffix](path)
-            self._write_extracted_data(path, data, metadata, attributes)
+            # data, metadata, attributes = conversion_functions[path.suffix](path)
+            extracted = conversion_functions[path.suffix](path)
+            self._write_extracted_data(path, extracted)
         else:
             raise TypeError(f"{path.suffix} file doesn't have a conversion function.")
 
@@ -339,19 +342,17 @@ class HyFile:
 
         self.file.create_dataset(key, data=data)
 
-    def _write_extracted_data(
-        self, path: Path, data: dict[str, Any], metadata: dict[str, Any], attributes: dict[str, Any]
-    ) -> None:
+    def _write_extracted_data(self, path: Path, extracted_values: HyConvertedData) -> None:
         self._require_group(f"datasets/{path.stem}")
 
-        for d_key, d_value in data.items():
+        for d_key, d_value in extracted_values.data.items():
             self._create_dataset((f"datasets/{path.stem}/{d_key}", d_value), overwrite=True)
 
-            for attr in attributes[d_key].items():
+            for attr in extracted_values.attributes[d_key].items():
                 self.attrs[f"datasets/{path.stem}/{d_key}"] = attr
 
-        if isinstance(metadata, dict):
-            for key in metadata:
-                self._create_dataset((f"metadata/{path.stem}/{key}", metadata[key]))
+        if isinstance(extracted_values.metadata, dict):
+            for key in extracted_values.metadata:
+                self._create_dataset((f"metadata/{path.stem}/{key}", extracted_values.metadata[key]))
         else:
-            self._create_dataset((f"metadata/{path.stem}", metadata))
+            self._create_dataset((f"metadata/{path.stem}", extracted_values.metadata))

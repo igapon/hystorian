@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from igor2 import binarywave
 
-from hystorian.io import hyFile
+from hystorian.io import hyFile, utils
 
 filepath = pathlib.Path("tests/test_files/test.hdf5")
 
@@ -79,9 +79,11 @@ class TestHyFileConversion:
         fake_path = "tmp_file"
         data = {"a": np.arange(100), "b": np.arange(200)}
         attr = {"a": {"name": "test_a", "size": 100}, "b": {"name": "test_b", "size": 200}}
-        metadata = "This is metadata"
+        metadata = {"a": "This is metadata"}
+
+        extracted = utils.HyConvertedData(data, metadata, attr)
         with hyFile.HyFile(filepath, "r+") as f:
-            f._write_extracted_data(pathlib.Path(fake_path), data, metadata, attr)
+            f._write_extracted_data(pathlib.Path(fake_path), extracted)
 
             assert f[f"datasets/{fake_path}/a"].attrs["name"] == "test_a"
             assert f[f"datasets/{fake_path}/b"].attrs["name"] == "test_b"

@@ -5,11 +5,13 @@ import h5py
 import numpy as np
 from igor2 import binarywave
 
+from .utils import HyConvertedData
+
 # ==========================================
 # IBW conversion
 
 
-def extract_ibw(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+def extract_ibw(filename: Path) -> HyConvertedData:
     """extract_ibw uses igor2 (https://github.com/AFM-analysis/igor2/) to convert ibw files from Asylum AFM.
 
     Parameters
@@ -19,9 +21,7 @@ def extract_ibw(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[st
 
     Returns
     -------
-    data : dict[str, Any]
-    metadata : dict[str, Any]
-    attributes : dict[str, Any]]
+    HyConvertedData
         The extra saved attributes are: the scale (in m/px), the image offset and the units of each channel.
     """
 
@@ -75,5 +75,5 @@ def extract_ibw(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[st
             attributes[k]["unit"] = ("m", "m", "m")
         else:
             attributes[k]["unit"] = ("m", "m", "unknown")
-
-    return data, metadata, attributes
+    converted = HyConvertedData(data, metadata, attributes)
+    return converted

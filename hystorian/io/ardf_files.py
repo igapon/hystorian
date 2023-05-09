@@ -8,6 +8,8 @@ from typing import Any
 import h5py
 import numpy as np
 
+from .utils import HyConvertedData
+
 """
 Following code was translated from the original Matlab source code written by Matthew Poss available here: https://ch.mathworks.com/matlabcentral/fileexchange/80212-ardf-to-matlab/?s_tid=LandingPageTabfx
 """
@@ -667,7 +669,7 @@ def getARDFdata(FN, getPoint=None, getLine=None, trace=None, fileStruct=None, ve
     return G
 
 
-def extract_ardf(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+def extract_ardf(filename: Path) -> HyConvertedData:
     """Extract datas based on original Matlab source code written by Matthew Poss available here: https://ch.mathworks.com/matlabcentral/fileexchange/80212-ardf-to-matlab/?s_tid=LandingPageTabfx
 
     Parameters
@@ -739,5 +741,5 @@ def extract_ardf(filename: Path) -> tuple[dict[str, Any], dict[str, Any], dict[s
         attributes[channelName]["shape"] = channel_result.shape
 
     gc.disable()
-
-    return data, metadata, attributes
+    extracted = HyConvertedData(data, metadata, attributes)
+    return extracted

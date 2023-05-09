@@ -1,14 +1,17 @@
-from pathlib import Path
+from dataclasses import dataclass
+from typing import Any
 
-import h5py
 
+@dataclass
+class HyConvertedData:
+    """Dataclass containing the converted data from proprietary files. It contains:
 
-def create_empty_hdf5(filepath: Path):
-    with h5py.File(filepath.with_suffix(".hdf5"), "w") as f:
-        f.create_group("metadata")
-        f["metadata"].create_dataset(filepath.stem, dtype=h5py.Empty(h5py.string_dtype(encoding="utf-8")))
+    - data: a dict containing all the raw experimental datas.
+    - metadata: all the extra informations extracted from the file, usually in a raw form.
+    - Some default attributes (like the size of the data), and when convenient some extra attributes (usually extracted from the metadata) for ease of use.
 
-        f.create_group("process")
+    """
 
-        datagrp = f.create_group(f"datasets/{filepath.stem}")
-        datagrp.attrs["type"] = h5py.Empty(h5py.string_dtype(encoding="utf-8"))
+    data: dict[str, Any]
+    metadata: dict[str, Any]
+    attributes: dict[str, dict[str, Any]]

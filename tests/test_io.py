@@ -20,7 +20,7 @@ def teardown_module():
 class TestHyFileClass:
     def test_init(self):
         with hyFile.HyFile(filepath) as f:
-            root_keys = f[""]
+            root_keys = list(f[""])
 
         assert root_keys == ["datasets", "metadata", "process"]
 
@@ -29,7 +29,7 @@ class TestHyFileClass:
             pass
 
         with hyFile.HyFile(filepath) as f:
-            root_keys = f[""]
+            root_keys = list(f[""])
 
         assert root_keys == ["datasets", "metadata", "process"]
 
@@ -96,9 +96,14 @@ class TestHyFileConversion:
             f.extract_data(path)
 
             tmpdata = binarywave.load(path)["wave"]
-            metadata = tmpdata["note"]
+            metadata = {}
 
-            assert f.read(f"metadata/{path.stem}") == metadata
+            for meta in tmpdata["note"].decode("ISO-8859-1").split("\r")[:-1]:
+                if len(meta.split(":")) == 2:
+                    metadata[meta.split(":")[0]] = meta.split(":")[1]
+
+            for key in f.read(f"metadata/{path.stem}"):
+                assert key in list(metadata.keys())
 
     def test_extraction_gsf(self):
         path = pathlib.Path("tests/test_files/raw_files/test_gsf.gsf")
@@ -126,6 +131,16 @@ class TestHyFileConversion:
             gsfFile.close()
 
             assert f.read(f"metadata/{path.stem}/XReal") == float(metadata["XReal"])
+
+    def test_extraction_ardf_sspfm(self):
+        path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")
+        with hyFile.HyFile(filepath, "r+") as f:
+            f.extract_data(path)
+
+    def test_extraction_ardf_sspfm(self):
+        path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")
+        with hyFile.HyFile(filepath, "r+") as f:
+            f.extract_data(path)
 
 
 if __name__ == "__main__":

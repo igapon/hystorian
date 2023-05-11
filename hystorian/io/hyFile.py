@@ -3,7 +3,7 @@ import types
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, overload
+from typing import Any, Callable, KeysView, Optional, overload
 
 import h5py
 import numpy as np

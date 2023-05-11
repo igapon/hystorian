@@ -150,9 +150,9 @@ class HyFile:
 
         return True
 
-    def __getitem__(self, path: str = "") -> list[str] | h5py.Group | h5py.Dataset | h5py.Datatype:
+    def __getitem__(self, path: str = "") -> KeysView | h5py.Group | h5py.Dataset | h5py.Datatype:
         if path == "":
-            return list(self.file.keys())
+            return self.file.keys()
         else:
             return self.file[path]
 

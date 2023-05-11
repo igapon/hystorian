@@ -39,19 +39,24 @@ def extract_ibw(filename: Path) -> HyConvertedData:
 
     tmpdata = binarywave.load(filename)["wave"]
 
-    metadata = tmpdata["note"]
+    metadata = {}
+
+    for meta in tmpdata["note"].decode("ISO-8859-1").split("\r")[:-1]:
+        if len(meta.split(":")) == 2:
+            metadata[meta.split(":")[0]] = meta.split(":")[1]
 
     label_list = correct_label(tmpdata["labels"])
 
     data = {}
     attributes = {}
 
-    fastsize = float(str(metadata).split("FastScanSize:")[-1].split("\\r")[0])
-    slowsize = float(str(metadata).split("SlowScanSize:")[-1].split("\\r")[0])
-    xoffset = float(str(metadata).split("XOffset:")[1].split("\\r")[0])
-    yoffset = float(str(metadata).split("YOffset:")[1].split("\\r")[0])
+    fastsize = float(metadata["FastScanSize"])
+    slowsize = float(metadata["SlowScanSize"])
+    xoffset = float(metadata["XOffset"])
+    yoffset = float(metadata["YOffset"])
 
     for i, k in enumerate(label_list):
+        k = k.decode("UTF-8")
         if len(np.shape(tmpdata["wData"])) == 2:
             data[k] = np.flipud(tmpdata["wData"][:, i].T)
             shape = tmpdata["wData"][:, i].T.shape
@@ -63,7 +68,7 @@ def extract_ibw(filename: Path) -> HyConvertedData:
 
         attributes[k]["shape"] = shape
         attributes[k]["scale_m_per_px"] = fastsize / shape[0]
-        attributes[k]["name"] = k.decode("utf8")
+        attributes[k]["name"] = k
         attributes[k]["size"] = (fastsize, slowsize)
         attributes[k]["offset"] = (xoffset, yoffset)
 

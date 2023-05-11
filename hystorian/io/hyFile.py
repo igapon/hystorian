@@ -329,30 +329,43 @@ class HyFile:
         for k, v in attr_dict:
             self.attrs[path] = (k, v)
 
-    def _require_group(self, name: str):
-        self.file.require_group(name)
+    def _require_group(self, name: str, f=None):
+        if f is None:
+            f = self.file
+        f.require_group(name)
 
-    def _create_dataset(self, dataset: tuple[str, Any], overwrite=True) -> None:
+    def _create_dataset(self, dataset: tuple[str, Any], f=None, overwrite=True) -> None:
+        if f is None:
+            f = self.file
+
         key, data = dataset
-        if key in self.file:
+        if key in f:
             if overwrite:
-                del self.file[key]
+                del f[key]
             else:
                 raise KeyError("Key already exist and overwriste is set to False.")
 
-        self.file.create_dataset(key, data=data)
+        f.create_dataset(key, data=data)
+
+    def _generate_deep_groups(self, deep_dict, path=None):
+        f = self.file
+        if path is not None:
+            f = f[path]
+
+        for key, val in deep_dict.items():
+            if isinstance(deep_dict[key], dict):
+                self._require_group(key, f)
+                self._generate_deep_groups(val, key)
+            else:
+                self._create_dataset((key, val), f=f)
 
     def _write_extracted_data(self, path: Path, extracted_values: HyConvertedData) -> None:
         self._require_group(f"datasets/{path.stem}")
+        self._generate_deep_groups(extracted_values.data, f"datasets/{path.stem}")
 
-        for d_key, d_value in extracted_values.data.items():
-            self._create_dataset((f"datasets/{path.stem}/{d_key}", d_value), overwrite=True)
+        self._require_group(f"metadata/{path.stem}")
+        self._generate_deep_groups(extracted_values.metadata, f"metadata/{path.stem}")
 
+        for d_key in extracted_values.data.keys():
             for attr in extracted_values.attributes[d_key].items():
                 self.attrs[f"datasets/{path.stem}/{d_key}"] = attr
-
-        if isinstance(extracted_values.metadata, dict):
-            for key in extracted_values.metadata:
-                self._create_dataset((f"metadata/{path.stem}/{key}", extracted_values.metadata[key]))
-        else:
-            self._create_dataset((f"metadata/{path.stem}", extracted_values.metadata))

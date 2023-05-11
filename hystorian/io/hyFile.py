@@ -347,24 +347,23 @@ class HyFile:
 
         f.create_dataset(key, data=data)
 
-    def _generate_deep_groups(self, deep_dict, path=None):
-        f = self.file
-        if path is not None:
-            f = f[path]
+    def _generate_deep_groups(self, deep_dict, f=None):
+        if f is None:
+            f = self.file
 
         for key, val in deep_dict.items():
             if isinstance(deep_dict[key], dict):
                 self._require_group(key, f)
-                self._generate_deep_groups(val, key)
+                self._generate_deep_groups(val, f[key])
             else:
-                self._create_dataset((key, val), f=f)
+                self._create_dataset((key, val), f)
 
     def _write_extracted_data(self, path: Path, extracted_values: HyConvertedData) -> None:
         self._require_group(f"datasets/{path.stem}")
-        self._generate_deep_groups(extracted_values.data, f"datasets/{path.stem}")
+        self._generate_deep_groups(extracted_values.data, self.file[f"datasets/{path.stem}"])
 
         self._require_group(f"metadata/{path.stem}")
-        self._generate_deep_groups(extracted_values.metadata, f"metadata/{path.stem}")
+        self._generate_deep_groups(extracted_values.metadata, self.file[f"metadata/{path.stem}"])
 
         for d_key in extracted_values.data.keys():
             for attr in extracted_values.attributes[d_key].items():

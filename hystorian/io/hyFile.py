@@ -129,13 +129,13 @@ class HyFile:
 
         if isinstance(path, str):
             path = Path(path)
-
-        if path.suffix in conversion_functions:
+        suffix = path.suffix.lower()
+        if suffix in conversion_functions:
             # data, metadata, attributes = conversion_functions[path.suffix](path)
-            extracted = conversion_functions[path.suffix](path)
+            extracted = conversion_functions[suffix](path)
             self._write_extracted_data(path, extracted)
         else:
-            raise TypeError(f"{path.suffix} file doesn't have a conversion function.")
+            raise TypeError(f"{suffix} file doesn't have a conversion function.")
 
     def __enter__(self):
         return self

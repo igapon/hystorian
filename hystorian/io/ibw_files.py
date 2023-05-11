@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 from igor2 import binarywave
 
-from .utils import HyConvertedData
+from .utils import HyConvertedData, conversion_metadata
 
 # ==========================================
 # IBW conversion
@@ -43,7 +43,7 @@ def extract_ibw(filename: Path) -> HyConvertedData:
 
     for meta in tmpdata["note"].decode("ISO-8859-1").split("\r")[:-1]:
         if len(meta.split(":")) == 2:
-            metadata[meta.split(":")[0]] = meta.split(":")[1]
+            metadata[meta.split(":")[0]] = conversion_metadata(meta.split(":")[1])
 
     label_list = correct_label(tmpdata["labels"])
 

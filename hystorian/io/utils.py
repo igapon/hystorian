@@ -15,3 +15,13 @@ class HyConvertedData:
     data: dict[str, Any]
     metadata: dict[str, Any]
     attributes: dict[str, dict[str, Any]]
+
+
+def conversion_metadata(value):
+    try:
+        return int(value)
+    except ValueError:
+        try:
+            return float(value)
+        except ValueError:
+            return str(value)

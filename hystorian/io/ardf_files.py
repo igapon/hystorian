@@ -3,12 +3,10 @@ import os
 import pickle
 import struct
 from pathlib import Path
-from typing import Any
 
-import h5py
 import numpy as np
 
-from .utils import HyConvertedData
+from .utils import HyConvertedData, conversion_metadata
 
 """
 Following code was translated from the original Matlab source code written by Matthew Poss available here: https://ch.mathworks.com/matlabcentral/fileexchange/80212-ardf-to-matlab/?s_tid=LandingPageTabfx
@@ -691,8 +689,7 @@ def extract_ardf(filename: Path) -> HyConvertedData:
     attributes = {}
     metadata = {}
     for idx, channelName in enumerate(F["imageList"]):
-        channelName = channelName[0].decode("utf8")
-
+        channelName = channelName[0].decode("utf8").split("\x00")[0]
         data[channelName] = F["y"][idx][:][:]
 
         attributes[channelName] = {}
@@ -703,11 +700,13 @@ def extract_ardf(filename: Path) -> HyConvertedData:
 
         metadata[channelName] = {}
         for key, value in F["notes"][idx].items():
-            metadata[channelName][key] = value
+            metadata[channelName][key] = conversion_metadata(value)
 
     lines = F["FileStructure"]["volm1"]["vdef"]["lines"]
     points = F["FileStructure"]["volm1"]["vdef"]["points"]
     for idx, channelName in enumerate(F["FileStructure"]["volm1"]["vchn"]):
+        channelName = channelName.decode("utf8").split("\x00")[0]
+
         max_size = 0
         channel_result = []
         for point in range(points):
@@ -737,6 +736,7 @@ def extract_ardf(filename: Path) -> HyConvertedData:
 
         channel_result = np.array(channel_result)
         data[channelName] = channel_result
+        attributes[channelName] = {}
         attributes[channelName]["name"] = channelName
         attributes[channelName]["shape"] = channel_result.shape
 

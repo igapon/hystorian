@@ -83,9 +83,9 @@ def local_readTOC(fid, address, _type):
     local_checkType(lastType, _type, fid)
 
     toc = {}
-    toc["sizeTable"] = struct.unpack("Q", fid.read(size=8))[0]
-    toc["numbEntry"] = struct.unpack("I", fid.read(size=4))[0]
-    toc["sizeEntry"] = struct.unpack("I", fid.read(size=4))[0]
+    toc["sizeTable"] = struct.unpack("Q", fid.read(8))[0]
+    toc["numbEntry"] = struct.unpack("I", fid.read(4))[0]
+    toc["sizeEntry"] = struct.unpack("I", fid.read(4))[0]
 
     if toc["sizeEntry"] == 24:
         # FTOC, IMAG, VOLM
@@ -110,13 +110,6 @@ def local_readTOC(fid, address, _type):
 
     done = 0
     numbRead = 1
-    lastPointer = 0
-    sizeRead = 0
-    lastIndex = 0
-    lastPntCount = 0
-    lastData = 0
-    lastLinCount = 0
-    lastLinPoint = 0
     while (done == 0) and (numbRead <= toc["numbEntry"]):
         [dumCRC, dumSize, typeEntry, dumMisc] = local_readARDFpointer(fid, -1)
 
@@ -314,8 +307,8 @@ def local_checkType(found, test, fid):
 
 def readARDF(FN):
     D = {}
-    D["FileName"] = FN[:-5]
-    D["FileType"] = "ARDF"
+    D["FileName"] = FN.stem
+    D["FileType"] = FN.suffix
     D["endNote"] = {}
 
     fid = open(FN, "rb")
@@ -483,8 +476,8 @@ def getARDFdata(FN, getPoint=None, getLine=None, trace=None, fileStruct=None, ve
     D = {}
     F = {}
     G = {}
-    FNbase = FN[:-4]
-    FNmat = FNbase + "dat"
+    # FNbase = FN[:-4]
+    FNmat = FN.with_suffix(".dat")  # FNbase + "dat"
 
     fid = open(FN, "rb")
 

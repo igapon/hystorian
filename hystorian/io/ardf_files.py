@@ -670,9 +670,7 @@ def extract_ardf(filename: Path) -> HyConvertedData:
 
     Returns
     -------
-    data : dict[str, Any]
-    metadata : dict[str, Any]
-    attributes : dict[str, Any]]
+    HyConvertedData
     """
 
     gc.enable()

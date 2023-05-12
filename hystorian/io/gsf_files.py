@@ -18,9 +18,7 @@ def extract_gsf(filename: Path) -> HyConvertedData:
 
     Returns
     -------
-    data : dict[str, Any]
-    metadata : dict[str, Any]
-    attributes : dict[str, Any]]
+    HyConvertedData
 
     Raises
     ------

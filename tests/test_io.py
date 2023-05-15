@@ -74,7 +74,7 @@ class TestHyFileClass:
             assert "not_a_folder" not in f
 
 
-class TestHyFileConversion:
+class TestHyFileWrite:
     def test_write_extracted_data(self):
         fake_path = "tmp_file"
         data = {"a": np.arange(100), "b": np.arange(200)}
@@ -89,58 +89,6 @@ class TestHyFileConversion:
             assert f[f"datasets/{fake_path}/b"].attrs["name"] == "test_b"
             assert f[f"datasets/{fake_path}/b"].attrs["size"] == 200
             assert (f[f"datasets/{fake_path}/b"] == np.arange(200)).all()
-
-    def test_extraction_ibw(self):
-        path = pathlib.Path("tests/test_files/raw_files/test_ibw.ibw")
-        with hyFile.HyFile(filepath, "r+") as f:
-            f.extract_data(path)
-
-            tmpdata = binarywave.load(path)["wave"]
-            metadata = {}
-
-            for meta in tmpdata["note"].decode("ISO-8859-1").split("\r")[:-1]:
-                if len(meta.split(":")) == 2:
-                    metadata[meta.split(":")[0]] = meta.split(":")[1]
-
-            for key in f.read(f"metadata/{path.stem}"):
-                assert key in list(metadata.keys())
-
-    def test_extraction_gsf(self):
-        path = pathlib.Path("tests/test_files/raw_files/test_gsf.gsf")
-        with hyFile.HyFile(filepath, "r+") as f:
-            f.extract_data(path)
-
-            gsfFile = open(path, "rb")  # + ".gsf", "rb")
-
-            metadata = {}
-
-            # check if header is OK
-            if not (gsfFile.readline().decode("UTF-8") == "Gwyddion Simple Field 1.0\n"):
-                gsfFile.close()
-                raise ValueError("File has wrong header")
-
-            term = b"00"
-            # read metadata header
-            while term != b"\x00":
-                line_string = gsfFile.readline().decode("UTF-8")
-                metadata[line_string.rpartition("=")[0].strip()] = line_string.rpartition("=")[2].strip()
-                term = gsfFile.read(1)
-
-                gsfFile.seek(-1, 1)
-
-            gsfFile.close()
-
-            assert f.read(f"metadata/{path.stem}/XReal") == float(metadata["XReal"])
-
-    def test_extraction_ardf_sspfm(self):
-        path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")
-        with hyFile.HyFile(filepath, "r+") as f:
-            f.extract_data(path)
-
-    def test_extraction_ardf_sspfm(self):
-        path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")
-        with hyFile.HyFile(filepath, "r+") as f:
-            f.extract_data(path)
 
 
 if __name__ == "__main__":

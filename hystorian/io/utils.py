@@ -17,11 +17,19 @@ class HyConvertedData:
     attributes: dict[str, dict[str, Any]]
 
 
-def conversion_metadata(value):
+def is_number(s):
     try:
-        return int(value)
+        float(s)
+        return True
     except ValueError:
-        try:
+        return False
+
+
+def conversion_metadata(value):
+    if is_number(value):
+        if float(value).is_integer():
+            return int(float(value))
+        else:
             return float(value)
-        except ValueError:
-            return str(value)
+    else:
+        return value.strip()

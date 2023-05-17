@@ -1,5 +1,6 @@
 import gc
 import struct
+import warnings
 from pathlib import Path
 
 import chardet
@@ -15,11 +16,11 @@ Following code was translated from the original Matlab source code written by Ma
 def smart_decode(b):
     try:
         decoded = b.decode("UTF-8")
-        return decoded.split("\x00")[0]
+        return decoded.replace("\x00", "")
     except:
         try:
             encoding = chardet.detect(b)["encoding"]
-            return b.decode(encoding).split("\x00")[0]
+            return b.decode(encoding).replace("\x00", "")
         except:
             return b
 
@@ -32,12 +33,9 @@ def read_convert(fid, bitLen, type_):
 # readARDF Functions
 # ==================
 def readARDF(FN):
-    FileName = FN.stem
-    FileType = FN.suffix
-
     fid = open(FN, "rb")
 
-    dumCRC, dumSize, lastType, dumMisc = local_readARDFpointer(fid, 0)
+    _, _, lastType, _ = local_readARDFpointer(fid, 0)
     local_checkType(lastType, "ARDF", fid)
     F = {}
     D = {}
@@ -69,10 +67,9 @@ def readARDF(FN):
         F[volmN]["vchn"] = []
         F[volmN]["xdef"] = {}
 
-        done = 0
-
-        while done == 0:
-            dumCRC, lastSize, lastType, dumMisc = local_readARDFpointer(fid, -1)
+        done = False
+        while not done:
+            _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
             if lastType == "VCHN":
                 textSize = 32
                 theChannel = smart_decode(fid.read(textSize))
@@ -87,16 +84,14 @@ def readARDF(FN):
                 F[volmN]["xdef"]["text"] = smart_decode(fid.read(F[volmN]["xdef"]["sizeTable"]))
 
                 _ = fid.read(lastSize - 16 - 8 - F[volmN]["xdef"]["sizeTable"])
-                done = 1
-
+                done = True
             else:
-                print(f"78 - '{lastType}' is not recognized!")
-                print(dumCRC, lastSize, lastType, dumMisc)
+                raise ValueError(f"'{lastType}' is not recognized!")
 
         D["channelList"] = D["channelList"] + F[volmN]["vchn"]
         F[volmN]["idx"] = local_readTOC(fid, -1, "VTOC")
 
-        dumCRC, lastSize, lastType, dumMisc = local_readARDFpointer(fid, -1)
+        _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
         local_checkType(lastType, "MLOV", fid)
 
         F[volmN]["line"] = {}
@@ -147,7 +142,7 @@ def local_readVSET(fid, address):
     if address != -1:
         fid.seek(address)
 
-    dumCRC, lastSize, lastType, dumMisc = local_readARDFpointer(fid, -1)
+    _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VSET", fid)
 
     vset["force"] = read_convert(fid, 4, "I")
@@ -186,7 +181,7 @@ def extractImages(fid, F, noteMain):
         idat = local_readTOC(fid, -1, "IBOX")
         D["y"].append(idat["data"])
 
-        [dumCRC, dumSize, lastType, dumMisc] = local_readARDFpointer(fid, -1)
+        _, _, lastType, _ = local_readARDFpointer(fid, -1)
         local_checkType(lastType, "GAMI", fid)
 
         numbImagText = len(F[imagN]["ttoc"]["pntText"])
@@ -204,7 +199,7 @@ def extractImages(fid, F, noteMain):
                 elif r == 3:
                     noteQuick = theNote
                 else:
-                    raise Exception(f"'r' should be between 1 and 3. 'r' value is {r}.")
+                    raise ValueError(f"'r' should be between 1 and 3. 'r' value is {r}.")
             else:
                 F[imagN]["note"] = parseNotes(theNote)
 
@@ -225,7 +220,7 @@ def local_readDEF(fid, address, type):
     if address != -1:
         fid.seek(address, 0)
 
-    dumCRC, sizeDEF, typeDEF, dumMisc = local_readARDFpointer(fid, -1)
+    _, sizeDEF, typeDEF, _ = local_readARDFpointer(fid, -1)
     local_checkType(typeDEF, type, fid)
 
     def_["points"] = read_convert(fid, 4, "I")
@@ -236,7 +231,7 @@ def local_readDEF(fid, address, type):
     elif typeDEF == "VDEF":
         skip = 144
     else:
-        raise Exception(f"'typeDEF' has value {typeDEF}, was expecting 'IDEF' or 'VDEF'.")
+        raise ValueError(f"'typeDEF' has value {typeDEF}, was expecting 'IDEF' or 'VDEF'.")
 
     _ = fid.read(skip)
 
@@ -262,10 +257,10 @@ def parseNotes(theNote):
 
 def local_readTEXT(fid, loc):
     fid.seek(loc)
-    [dumCRC, dumSize, lastType, dumMisc] = local_readARDFpointer(fid, -1)
+    _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "TEXT", fid)
 
-    dumMisc = read_convert(fid, 4, "I")
+    _ = read_convert(fid, 4, "I")
     sizeNote = read_convert(fid, 4, "I")
     txt = fid.read(sizeNote)
     txt = smart_decode(txt)
@@ -279,7 +274,7 @@ def local_readTOC(fid, address, _type):
     if address != -1:
         fid.seek(address, 0)
 
-    dumCRC, lastSize, lastType, dumMisc = local_readARDFpointer(fid, -1)
+    _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
     if lastSize == 0:
         return toc
     local_checkType(lastType, _type, fid)
@@ -305,15 +300,14 @@ def local_readTOC(fid, address, _type):
         toc["data"] = []
         sizeRead = (toc["sizeEntry"] - 16) // 4
     else:
-        print(f"199 - '{_type}' is not recognized!")
-        print(dumCRC, lastSize, lastType, dumMisc)
+        raise ValueError(f"199 - '{_type}' is not recognized!")
 
     done = 0
     numbRead = 1
 
     while (done == 0) and (numbRead <= toc["numbEntry"]):
-        dumCRC, dumSize, typeEntry, dumMisc = local_readARDFpointer(fid, -1)
-        if dumSize == 0:
+        _, tmpSize, typeEntry, _ = local_readARDFpointer(fid, -1)
+        if tmpSize == 0:
             pass
         elif typeEntry in ["FTOC", "IMAG", "VOLM", "NEXT", "THMB", "NSET"]:
             lastPointer = read_convert(fid, 8, "Q")
@@ -330,8 +324,7 @@ def local_readTOC(fid, address, _type):
                 sizeRead = (toc["sizeEntry"] - 16) // 4
             lastData = read_convert(fid, 4 * sizeRead, f"{sizeRead}i")
         else:
-            print(f"220 - '{typeEntry}' is not recognized!")
-            print(dumCRC, dumSize, typeEntry, dumMisc)
+            raise ValueError(f"'{typeEntry}' is not recognized!")
 
         if typeEntry in ["IMAG", "VOLM", "NEXT", "NSET", "THMB"]:
             toc[f"pnt{typeEntry.capitalize()}"].append(lastPointer)
@@ -375,7 +368,7 @@ def local_readARDFpointer(fid, address):
 
 def local_checkType(found, test, fid):
     if found != test:
-        raise Exception(f"Error: No '{test}' here! Found: '{found}' at Location: {fid.tell()-16}")
+        raise ValueError(f"Error: No '{test}' here! Found: '{found}' at Location: {fid.tell()-16}")
 
 
 # ==================
@@ -384,7 +377,6 @@ def local_checkType(found, test, fid):
 
 
 def getARDFdata(FN, getLine, trace, fileStruc=None):
-    FNbase = FN.stem
     fid = open(FN, "rb")
 
     if fileStruc:
@@ -410,13 +402,13 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
 
     locLine = F[getVolm]["idx"]["linPointer"][adjLine]
 
+    G = {}
+
     if locLine == 0:
-        G = {}
         fid.close()
         return G
 
     fid.seek(locLine)
-    G = {}
     for key in ["numbForce", "numbLine", "numbPoint", "locPrev", "locNext", "name", "y", "pnt0", "pnt1", "pnt2"]:
         G[key] = []
 
@@ -463,11 +455,10 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
 
 
 def local_readXDAT(fid, address):
-    xdat = {}
     if address != -1:
         fid.seek(-1)
 
-    [dumCRC, lastSize, lastType, dumMisc] = local_readARDFpointer(fid, -1)
+    _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
 
     if lastType == "XDAT":
         stepDist = lastSize - 16
@@ -476,7 +467,7 @@ def local_readXDAT(fid, address):
         fid.seek(-16, 1)
 
     else:
-        raise Exception(f"Error: No 'XDAT' or 'VSET' here! Found: '{lastType}' at Location: {fid.tell()-16}")
+        raise ValueError(f"Error: No 'XDAT' or 'VSET' here! Found: '{lastType}' at Location: {fid.tell()-16}")
 
 
 def local_readVNAM(fid, address):
@@ -485,7 +476,7 @@ def local_readVNAM(fid, address):
     if address != -1:
         fid.seek(-1)
 
-    dumCRC, lastSize, lastType, dumMisc = local_readARDFpointer(fid, -1)
+    _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VNAM", fid)
 
     vnam["force"] = read_convert(fid, 4, "I")
@@ -506,18 +497,12 @@ def local_readVDAT(fid, address):
     if address != -1:
         fid.seek(-1)
 
-    [dumCRC, lastSize, lastType, dumMisc] = local_readARDFpointer(fid, -1)
+    _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VDAT", fid)
 
-    vdat["force"] = read_convert(fid, 4, "I")
-    vdat["line"] = read_convert(fid, 4, "I")
-    vdat["point"] = read_convert(fid, 4, "I")
-    vdat["sizeData"] = read_convert(fid, 4, "I")
+    for key in ["force", "line", "point", "sizeData", "forceType", "pnt0", "pnt1", "pnt2"]:
+        vdat[key] = read_convert(fid, 4, "I")
 
-    vdat["forceType"] = read_convert(fid, 4, "I")
-    vdat["pnt0"] = read_convert(fid, 4, "I")
-    vdat["pnt1"] = read_convert(fid, 4, "I")
-    vdat["pnt2"] = read_convert(fid, 4, "I")
     _ = fid.read(8)
 
     vdat["data"] = read_convert(fid, 4 * vdat["sizeData"], f"{vdat['sizeData']}i")

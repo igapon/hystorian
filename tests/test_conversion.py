@@ -58,11 +58,33 @@ class TestHyFileConversion:
         path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")
         with hyFile.HyFile(filepath, "r+") as f:
             f.extract_data(path)
+            channels = set(f.read("datasets/test_sspfm_ardf/"))
+            value = f.read("datasets/test_sspfm_ardf/Amp/retrace")[0][0][0]
+
+        assert channels == {
+            "Amp",
+            "Bias",
+            "MapAdhesion",
+            "MapHeight",
+            "Phase",
+            "Freq",
+            "Raw",
+            "ZSnsr",
+            "Defl",
+            "Phas2",
+        }
+
+        assert value == 914649891
 
     def test_extraction_ardf_fmap(self):
         path = pathlib.Path("tests/test_files/raw_files/test_fmap_ardf.ARDF")
         with hyFile.HyFile(filepath, "r+") as f:
             f.extract_data(path)
+            channels = set(f.read("datasets/test_fmap_ardf/"))
+            value = f.read("datasets/test_fmap_ardf/Bias/trace")[0][0][0]
+
+        assert channels == {"Bias", "MapAdhesion", "Raw", "MapHeight", "ZSnsr", "Defl"}
+        assert value == -1241034492
 
 
 if __name__ == "__main__":

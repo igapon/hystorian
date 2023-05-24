@@ -13,6 +13,8 @@ import numpy.typing as npt
 from . import ardf_files, gsf_files, ibw_files, nanoscope_files
 from .utils import HyConvertedData
 
+h5pyType = KeysView | h5py.Group | h5py.Dataset | h5py.Datatype
+
 
 class HyFile:
     """HyFile is a class that wraps around the h5py.File class and is used to create and manipulate datafile from proprieteray files
@@ -119,7 +121,7 @@ class HyFile:
 
         return True
 
-    def __getitem__(self, path: str = "") -> KeysView | h5py.Group | h5py.Dataset | h5py.Datatype:
+    def __getitem__(self, path: str = "") -> h5pyType:
         if path == "":
             return self.file.keys()
         else:

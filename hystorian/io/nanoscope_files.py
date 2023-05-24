@@ -84,6 +84,18 @@ def conversion_units(dat):
 
 
 def extract_nanoscope(path: Path) -> HyConvertedData:
+    """extract_nanoscope to convert Nanonis files to hdf5
+
+    Parameters
+    ----------
+    filename : Path
+        The name of the input file to be converted
+
+    Returns
+    -------
+    HyConvertedData
+        The metadata contains the scan_info from the orignal file, where the image_info are saved as attribute for each channel respectively
+    """
     data, scan_info, image_info = load_nanoscope(path)
 
     metadata = scan_info

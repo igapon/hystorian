@@ -1,6 +1,5 @@
 import gc
 import struct
-import warnings
 from pathlib import Path
 
 import chardet
@@ -102,7 +101,7 @@ def readARDF(FN):
             if loc != 0:
                 F[volmN]["line"][vsetN] = local_readVSET(fid, loc)
 
-                if F[volmN]["line"][vsetN]["line"] != (r - 1):
+                if F[volmN]["line"][vsetN]["line"] != r:
                     F[volmN]["scanDown"] = 1
                 else:
                     F[volmN]["scanDown"] = 0
@@ -376,11 +375,11 @@ def local_checkType(found, test, fid):
 # ==================
 
 
-def getARDFdata(FN, getLine, trace, fileStruc=None):
+def getARDFdata(FN, getLine=0, trace=0, fileStruct=None):
     fid = open(FN, "rb")
 
-    if fileStruc:
-        F = fileStruc
+    if fileStruct:
+        F = fileStruct
     else:
         F = readARDF(FN)["FileStructure"]
 
@@ -393,6 +392,7 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
 
     numbPoints = F[getVolm]["vdef"]["points"]
     numbLines = F[getVolm]["vdef"]["lines"]
+
     if F[getVolm]["scanDown"] == 1:
         adjLine = numbLines - getLine - 1
     else:
@@ -408,11 +408,11 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
         fid.close()
         return G
 
-    fid.seek(locLine)
+    fid.seek(locLine, 0)
     for key in ["numbForce", "numbLine", "numbPoint", "locPrev", "locNext", "name", "y", "pnt0", "pnt1", "pnt2"]:
         G[key] = []
 
-    for _ in range(1, numbPoints):
+    for _ in range(numbPoints):
         vset = local_readVSET(fid, -1)
         G["numbForce"].append(vset["force"])
         G["numbLine"].append(vset["line"])
@@ -425,7 +425,7 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
 
         theData = []
 
-        for _ in range(0, numbChannels):
+        for _ in range(numbChannels):
             vdat = local_readVDAT(fid, -1)
             theData.append(vdat["data"])
 
@@ -450,6 +450,7 @@ def getARDFdata(FN, getLine, trace, fileStruc=None):
                 "pnt2",
             ]:
                 G[key].reverse()
+
     fid.close()
     return G
 
@@ -495,7 +496,7 @@ def local_readVDAT(fid, address):
     vdat = {}
 
     if address != -1:
-        fid.seek(-1)
+        fid.seek(address, 0)
 
     _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VDAT", fid)
@@ -505,8 +506,8 @@ def local_readVDAT(fid, address):
 
     _ = fid.read(8)
 
-    vdat["data"] = read_convert(fid, 4 * vdat["sizeData"], f"{vdat['sizeData']}i")
-
+    vdat["data"] = struct.unpack(str(vdat["sizeData"]) + "i", fid.read(4 * vdat["sizeData"]))
+    # read_convert(fid, 4 * vdat["sizeData"], f"{vdat['sizeData']}i")
     return vdat
 
 
@@ -530,13 +531,12 @@ def extract_ardf(filename: Path) -> HyConvertedData:
     attributes = {}
     metadata = F["Notes"]
     for idx, channelName in enumerate(F["imageList"]):
-        channelName = channelName
         data[channelName] = F["y"][idx]
 
         attributes[channelName] = {}
 
         attributes[channelName]["name"] = channelName
-        attributes[channelName]["shape"] = np.shape(F["y"][idx][:][:])
+        attributes[channelName]["shape"] = np.shape(F["y"][idx])
         attributes[channelName]["unit"] = "unknown"
 
     lines = F["FileStructure"]["volm1"]["vdef"]["lines"]
@@ -545,33 +545,41 @@ def extract_ardf(filename: Path) -> HyConvertedData:
         data[channelName] = {}
         attributes[channelName] = {}
 
-        channel_result_retrace = []
-        channel_result_trace = []
-        for point in range(points):
-            result_line_retrace = getARDFdata(filename, point, 0, F["FileStructure"])
-            result_line_trace = getARDFdata(filename, point, 1, F["FileStructure"])
+        channel_result = {}
+        max_size = 0
+        for tracetype, key in enumerate(["retrace", "trace"]):
+            channel_result[key] = []
 
-            if result_line_retrace:
-                result_line_retrace = result_line_retrace["y"]
-                channel_result_retrace.append(result_line_retrace)
+            for point in range(points):
+                result_line = getARDFdata(filename, point, tracetype, F["FileStructure"])
+                result_line = list(np.array(result_line["y"], dtype=object)[:, idx])
 
-            if result_line_trace:
-                result_line_trace = result_line_trace["y"]
-                channel_result_trace.append(result_line_trace)
+                length = max(list(map(len, result_line)))
+                if length > max_size:
+                    max_size = length
 
-        channel_result_retrace = np.array(channel_result_retrace)
-        channel_result_trace = np.array(channel_result_trace)
+                result_line = list(
+                    map(
+                        lambda elem: list(elem) + [np.nan] * (max_size - len(elem)),
+                        result_line,
+                    )
+                )
+                channel_result[key].append(result_line)
 
-        data[channelName]["trace"] = channel_result_trace
-        data[channelName]["retrace"] = channel_result_retrace
+            for line in range(lines):
+                for point in range(points):
+                    if len(channel_result[key][line][point]) < max_size:
+                        channel_result[key][line][point] = channel_result[key][line][point] + [np.nan] * (
+                            max_size - len(channel_result[key][line][point])
+                        )
 
-        attributes[channelName]["name"] = channelName
+            data[channelName][key] = np.array(channel_result[key])
 
-        attributes[channelName]["trace"] = {}
-        attributes[channelName]["retrace"] = {}
+            attributes[channelName]["name"] = channelName
 
-        attributes[channelName]["trace"]["shape"] = channel_result_trace.shape
-        attributes[channelName]["retrace"]["shape"] = channel_result_retrace.shape
+            attributes[channelName][key] = {}
+
+            attributes[channelName][key]["shape"] = data[channelName][key].shape
 
     gc.disable()
     extracted = HyConvertedData(data, metadata, attributes)

@@ -86,6 +86,22 @@ class TestHyFileConversion:
         assert channels == {"Bias", "MapAdhesion", "Raw", "MapHeight", "ZSnsr", "Defl"}
         assert value == -1241034492
 
+    def test_nanonis(self):
+        path = pathlib.Path("tests/test_files/raw_files/test_nanonis.000")
+        with hyFile.HyFile(filepath, "r+") as f:
+            f.extract_data(path)
+            channels = set(f.read("datasets/test_nanonis"))
+            value = f.read("datasets/test_nanonis/HeightRetrace")[0][0]
+
+        assert channels == {
+            "AmplitudeErrorTrace",
+            "AmplitudeRetrace",
+            "HeightRetrace",
+            "PhaseTrace",
+            "ZSensorRetrace",
+        }
+        assert value == 29004
+
 
 if __name__ == "__main__":
     unittest.main()

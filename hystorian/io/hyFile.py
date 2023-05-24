@@ -1,4 +1,5 @@
 import inspect
+import re
 import types
 import warnings
 from datetime import datetime
@@ -9,7 +10,7 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 
-from . import ardf_files, gsf_files, ibw_files
+from . import ardf_files, gsf_files, ibw_files, nanoscope_files
 from .utils import HyConvertedData
 
 
@@ -322,13 +323,22 @@ class HyFile:
         if isinstance(path, str):
             path = Path(path)
         suffix = path.suffix.lower()
+
         if suffix in conversion_functions:
-            # data, metadata, attributes = conversion_functions[path.suffix](path)
             extracted = conversion_functions[suffix](path)
-            self._write_extracted_data(path, extracted)
+        # Nanoscope files use strange suffix (.000, .001, etc..) so we need to regex it.
+        elif re.match(".\d{3}", suffix) is not None:
+            try:
+                extracted = nanoscope_files.extract_nanoscope(path)
+            except:
+                raise TypeError(
+                    f"Your file is ending with three digits, but is not a Nanoscope file, please change the extension to the correct one."
+                )
+
         else:
             raise TypeError(f"{suffix} file doesn't have a conversion function.")
 
+        self._write_extracted_data(path, extracted)
     def _require_group(self, name: str, f=None):
         if f is None:
             f = self.file
@@ -339,15 +349,30 @@ class HyFile:
             f = self.file
 
         key, data = dataset
-        if key in f:
-            if overwrite:
-                del f[key]
-            else:
-                raise KeyError("Key already exist and overwriste is set to False.")
+        if key == "":
+            warnings.warn(f"There is an empty key, the value '{key}':'{data}' will be ignored.")
+        else:
+            if key in f:
+                if overwrite:
+                    del f[key]
+                else:
+                    raise KeyError("Key already exist and overwriste is set to False.")
 
-        f.create_dataset(key, data=data)
+            f.create_dataset(key, data=data)
 
-    def _generate_deep_groups(self, deep_dict, f=None):
+    def _generate_deep_groups(self, deep_dict: dict[str, dict], f: Optional[h5pyType] = None):
+        """_generate_deep_groups
+        Given a nested dictionnary and an hdf5 file opened with h5py,
+        it creates the necessary groups and subgroups (folder) in the hdf5 to mimic the structure of the nested dict.
+        The leaf of the nested dict should be the data you want to save.
+
+        Parameters
+        ----------
+        deep_dict : dict[str, dict]
+            Nested dictionnary containing the folders, subfolders and data that you want to save in the hdf5 file
+        f : Optional[h5py.File], optional
+            current position in the file, by default None: it will take the file self.file and start from its root.
+        """
         if f is None:
             f = self.file
 
@@ -356,7 +381,12 @@ class HyFile:
                 self._require_group(key, f)
                 self._generate_deep_groups(val, f[key])
             else:
-                self._create_dataset((key, val), f)
+                try:
+                    self._create_dataset((key, val), f)
+                except:
+                    raise Exception(
+                        f"'{key}':'{val}' are not working. Types are:'{type(key)}' and '{type(val)}' \n full dict is : {deep_dict}"
+                    )
 
     def _generate_deep_attributes(self, deep_dict, f=None):
         if f is None:

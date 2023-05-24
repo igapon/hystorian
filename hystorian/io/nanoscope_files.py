@@ -3,7 +3,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from . import utils
+from .utils import HyConvertedData, conversion_metadata, is_number
 
 
 def load_nanoscope(path):
@@ -19,17 +19,17 @@ def load_nanoscope(path):
         data_offset = int(image_infos[0]["Data offset"])
         with open(path, "rb") as fn:
             data_orig = np.frombuffer(fn.read(), dtype="<h", offset=data_offset)
-        pixels = int(scan_info["Samps/line"])
-        lines = int(scan_info["Lines"])
-        data = {}  # np.zeros((len(image_infos), pixels, lines))
+        data = {}
         start = 0
-        for chan in range(len(image_infos)):
-            tempX = int(image_infos[chan]["Valid data len X"])
-            tempY = int(image_infos[chan]["Valid data len X"])
+        for chan in image_infos:
+            tempX = int(chan["Valid data len X"])
+            tempY = int(chan["Valid data len X"])
             tempD = data_orig[start : start + tempX * tempY].reshape((tempY, tempX))
-            data[image_infos[chan]["@2:Image Data"].split('"')[1]] = tempD
+            data[chan["@2:Image Data"].split('"')[1].replace(" ", "") + chan["Line Direction"]] = tempD
             start = start + tempX * tempY
-
+        image_infos = {
+            chan["@2:Image Data"].split('"')[1].replace(" ", "") + chan["Line Direction"]: chan for chan in image_infos
+        }
         return data, scan_info, image_infos
 
 
@@ -42,7 +42,7 @@ def extract_scan_info(header):
             continue
         key, val = ":".join(line.split(":")[:-1])[1:], line.split(":")[-1].strip()
 
-        scan_dict[key] = utils.conversion_metadata(conversion_units(val))
+        scan_dict[key] = conversion_metadata(conversion_units(val))
     return scan_dict
 
 
@@ -57,7 +57,7 @@ def extract_image_info(header):
         key = ":".join(line.split(":")[:-1])
         value = line.split(":")[-1]
 
-        header_dict[key] = utils.conversion_metadata(conversion_units(value))
+        header_dict[key] = conversion_metadata(conversion_units(value))
 
     return header_dict
 
@@ -77,41 +77,23 @@ def conversion_units(dat):
     }
     if len(dat.split(" ")) == 2:
         value, unit = dat.split(" ")
-        if unit in unit_dic and utils.is_number(value):
+        if unit in unit_dic and is_number(value):
             return float(value) * unit_dic[unit]
 
     return dat
 
 
-"""
-def nanoscope2hdf5(filename, filepath=None):
-    data, scan_info, image_infos, header = load_nanoscope(filename)
-    with h5py.File(filename.replace(".", "_") + ".hdf5", "w") as f:
-        metadatagrp = f.create_group("metadata")
-        f.create_group("process")
+def extract_nanoscope(path: Path) -> HyConvertedData:
+    data, scan_info, image_info = load_nanoscope(path)
 
-        if filepath is not None:
-            metadatagrp.create_dataset(filepath.replace(".", "_"), data=header)
-            datagrp = f.create_group("datasets/" + filepath.replace(".", "_"))
-        else:
-            metadatagrp.create_dataset(filename.replace(".", "_"), data=header)
-            datagrp = f.create_group("datasets/" + filename.replace(".", "_"))
+    metadata = scan_info
+    attributes = {}
+    for chan in data:
+        attributes[chan] = {}
+        attributes[chan]["name"] = chan
+        attributes[chan]["size"] = np.shape(data[chan])
+        for key, value in image_info[chan].items():
+            attributes[chan][key] = value
 
-        datagrp.attrs.__setattr__("type", "Nanoscope")
-
-        for key in scan_info.keys():
-            datagrp.attrs[key] = scan_info[key]
-        # Get the name and trace orientation of each the channels
-        nameChan = []
-        for i in range(1, len(header.split("\@2:Image Data: "))):
-            chan = header.split("\@2:Image Data: ")[i].split("\r\n")[0].split()[-1][1:-1]
-            trace = header.split("\Line Direction: ")[i].split("\r\n")[0].split()[-1]
-            full_name = chan + "_" + trace
-            nameChan.append(full_name)
-
-        for indx, name in enumerate(nameChan):
-            dtst = datagrp.create_dataset(name, data=data[indx])
-            for key in image_infos[indx].keys():
-                dtst.attrs[key] = image_infos[indx][key]
-            dtst.attrs["scale_m_per_px"] = scan_info["Scan Size"] / scan_info["Samps/line"]
-"""
+    extracted = HyConvertedData(data, metadata, attributes)
+    return extracted

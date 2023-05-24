@@ -20,4 +20,7 @@ These conversion functions are used to convert standard raw data files from comm
 
  .. automodule:: hystorian.io.ardf_files
     :members:
+
+.. automodule:: hystorian.io.nanoscope_files
+    :members:
     

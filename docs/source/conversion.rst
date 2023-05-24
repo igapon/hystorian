@@ -7,7 +7,7 @@ HyConvertedData
  .. automodule:: hystorian.io.utils
     :members: HyConvertedData
 
-COnversion functions
+Conversion functions
 --------------------
 
 These conversion functions are used to convert standard raw data files from common machines in SPM labs into hdf5 files.

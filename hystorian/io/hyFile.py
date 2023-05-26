@@ -1,7 +1,9 @@
+import fnmatch
 import inspect
 import re
 import types
 import warnings
+from collections import UserString
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, KeysView, Optional, overload
@@ -14,6 +16,14 @@ from . import ardf_files, gsf_files, ibw_files, nanoscope_files
 from .utils import HyConvertedData
 
 h5pyType = KeysView | h5py.Group | h5py.Dataset | h5py.Datatype
+
+
+class HyPath(UserString):
+    def __str__(self):
+        return self.data
+
+    def __repr__(self):
+        return f"MyString({self.data!r})"
 
 
 class HyFile:
@@ -171,6 +181,7 @@ class HyFile:
         """
         if path is None:
             return list(self.file.keys())
+
         else:
             current = self.file[path]
             if isinstance(current, h5py.Group):
@@ -179,6 +190,14 @@ class HyFile:
                 return current
             else:
                 return current[()]
+
+    @property
+    def last_process(self):
+        processes = list(self.file["process"].keys())
+        if len(processes) > 0:
+            return processes[-1]
+        else:
+            return
 
     def apply(
         self,
@@ -214,7 +233,14 @@ class HyFile:
             output_names = inputs[0].rsplit("/", 1)[1]
         output_names = convert_to_list(output_names)
 
-        result = function(*inputs, **kwargs)
+        data_inputs = [np.array(self.read(input)) for input in inputs]
+        for key, value in kwargs.items():
+            if isinstance(value, HyPath):
+                kwargs[key] = self.read(value.data)
+            else:
+                kwargs[key] = value
+
+        result = function(*data_inputs, **kwargs)
 
         if result is None:
             return None
@@ -234,12 +260,22 @@ class HyFile:
         out_folder_location = self._generate_process_folder_name(num_proc, function)
 
         for name, data in zip(output_names, result):
-            self._create_dataset((f"{out_folder_location}/{name}", data))
+            self._create_dataset((f"process/{out_folder_location}/{name}", data))
 
-            self._write_generic_attributes(f"{out_folder_location}/{name}", inputs, name, function)
+            self._write_generic_attributes(f"process/{out_folder_location}/{name}", inputs, name, function)
             self._write_kwargs_as_attributes(
-                f"{out_folder_location}/{name}", function, kwargs, first_kwarg=len(inputs)
+                f"process/{out_folder_location}/{name}", function, kwargs, first_kwarg=len(inputs)
             )
+
+    def multiple_apply(self, function, paths, output_names=None, smart=False, **kwargs):
+        paths = self.path_search(paths)
+        increment_proc = True
+        if output_names is None:
+            output_names = [path[0].rsplit("/", 1)[1] for path in paths]
+
+        for path, output in zip(paths, output_names):
+            self.apply(function, path, increment_proc=increment_proc, output_names=output, **kwargs)
+            increment_proc = False
 
     def _generate_process_folder_name(self, num_proc: int, function: Callable) -> str:
         return f"{str(num_proc).zfill(3)}-{function.__name__}"
@@ -266,7 +302,7 @@ class HyFile:
         new_attrs["time"] = str(datetime.now())
         new_attrs["source"] = in_paths
 
-        for k, v in new_attrs:
+        for k, v in new_attrs.items():
             self.attrs[out_folder_location] = (k, v)
 
     def _write_kwargs_as_attributes(
@@ -297,7 +333,7 @@ class HyFile:
                     RuntimeWarning("Attribute was not able to be saved, probably because the attribute is too large")
                     attr_dict[f"kwargs_{key}"] = "None"
 
-        for k, v in attr_dict:
+        for k, v in attr_dict.items():
             self.attrs[path] = (k, v)
 
     def extract_data(self, path: str | Path) -> None:
@@ -341,6 +377,65 @@ class HyFile:
             raise TypeError(f"{suffix} file doesn't have a conversion function.")
 
         self._write_extracted_data(path, extracted)
+
+    def path_search(self, criterion: str | list[str] = "*"):
+        if not isinstance(criterion, list):
+            criterion = [criterion]
+
+        all_path = self._find_paths_of_all_subgroups()
+        correct_path = []
+        for criteria in criterion:
+            for path in all_path:
+                if fnmatch.fnmatch(path, criteria):
+                    correct_path.append(path)
+
+        return correct_path
+
+    def _expand_path(self, list_of_paths: list[list[str]], mode: str = "block"):
+        max_length = len(max(list_of_paths, key=len))
+        for paths in list_of_paths:
+            if mode in ["b", "block"]:
+                paths = np.repeat(paths, max_length // len(paths))
+            elif mode in ["a", "alt"]:
+                ...
+            else:
+                raise ValueError(f"Mode {mode} is not a valid one. Valid one is 'block' ('b') or 'alt' ('a').")
+
+    def _find_paths_of_all_subgroups(self, current_path=""):
+        """
+        Recursively determines list of paths for all datafiles in current_path, as well as datafiles in
+        all subfolders (and sub-subfolders and...) of current path. If no path given, will find all
+        subfolders in entire file.
+
+        Parameters
+        ----------
+        f : open file
+            open hdf5 file
+        current_path : string
+            current group searched
+
+        Returns
+        ------
+        path_list : list
+            list of paths to datafiles
+        """
+        path_list = []
+        if current_path == "":
+            curr_group = self.file
+        else:
+            curr_group = self.file[current_path]
+
+        for sub_group in curr_group:
+            if current_path == "":
+                new_path = f"{sub_group}"
+            else:
+                new_path = f"{current_path}/{sub_group}"
+            if isinstance(self.file[new_path], h5py.Group):
+                path_list.extend(self._find_paths_of_all_subgroups(new_path))
+            elif isinstance(self.file[new_path], h5py.Dataset):
+                path_list.append(new_path)
+        return path_list
+
     def _require_group(self, name: str, f=None):
         if f is None:
             f = self.file

@@ -1,5 +1,5 @@
-Converting raw data into hdf5
-=============================
+File Conversion
+===============
 
 HyConvertedData
 ---------------
@@ -7,9 +7,8 @@ HyConvertedData
  .. automodule:: hystorian.io.utils
     :members: HyConvertedData
 
-Conversion functions
---------------------
-
+Conversions functions
+---------------------
 These conversion functions are used to convert standard raw data files from common machines in SPM labs into hdf5 files.
 
  .. automodule:: hystorian.io.gsf_files
@@ -23,4 +22,3 @@ These conversion functions are used to convert standard raw data files from comm
 
 .. automodule:: hystorian.io.nanoscope_files
     :members:
-    

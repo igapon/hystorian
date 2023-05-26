@@ -5,8 +5,10 @@ Hystorian is a python package based on h5py, made for scientist to help manage a
 
 .. toctree::
 
-    api
+    hyfile
     conversion
+    physics
+    processing
 
 .. note:: 
 

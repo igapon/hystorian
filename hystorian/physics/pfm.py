@@ -93,9 +93,7 @@ def get_phase_unwrapping_shift(phase, phase_step=1):
     return phase_step * np.argmin(np.array(jumps))
 
 
-def PFM_params_map(
-    bias: npt.NDArray, phase: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
+def PFM_params_map(bias: npt.NDArray, phase: npt.NDArray) -> tuple[npt.NDArray]:
     """PFM_params_map calculates physically relevant hysteresis parameters from bias and phase channels.
 
     Parameters
@@ -107,13 +105,19 @@ def PFM_params_map(
 
     Returns
     -------
-    tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]
-        coerc_pos: the positive coercive bias
-        coerc_neg: the negative coercive bias
-        step_left: The size of the phase jump (left side)
-        step_right: The size of the phase jump (right side)
-        imprint: The imprint of the switching loop
-        phase_shift: The phase shift of the switching loop
+    coerc_pos: npt.NDArray
+        the positive coercive bias
+    coerc_neg: npt.NDArray
+        the negative coercive bias
+    step_left: npt.NDArray
+        The size of the phase jump (left side)
+    step_right: npt.NDArray
+        The size of the phase jump (right side)
+    imprint: npt.NDArray
+        The imprint of the switching loop
+    phase_shift: npt.NDArray
+        The phase shift of the switching loop
+
     """
     x, y, z = np.shape(phase)
     coerc_pos = np.zeros((x, y), dtype=float)
@@ -151,10 +155,11 @@ def _calc_hyst_params(bias: npt.NDArray, phase: npt.NDArray) -> list[npt.NDArray
     -------
         list[npt.NDArray]
         list where the elements correspond to :
-            the positive coercive bias
-            the negative coercive bias
-            The size of the phase jump (left side)
-            The size of the phase jump (right side)
+            - The positive coercive bias
+            - The negative coercive bias
+            - The size of the phase jump (left side)
+            - The size of the phase jump (right side)
+
     """
     biasdiff = np.diff(bias)
     up = np.sort(np.unique(np.hstack((np.where(biasdiff > 0)[0], np.where(biasdiff > 0)[0] + 1))))

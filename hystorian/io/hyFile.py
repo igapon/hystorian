@@ -148,6 +148,15 @@ class HyFile:
     def __contains__(self, path: str) -> bool:
         return path in self.file
 
+    @property
+    def last_process(self):
+        """returns a string which is the path to the last process in the hdf5 file."""
+        processes = list(self.file["process"].keys())
+        if len(processes) > 0:
+            return processes[-1]
+        else:
+            return
+
     @overload
     def read(self) -> list[str]:
         pass
@@ -190,14 +199,6 @@ class HyFile:
                 return current
             else:
                 return current[()]
-
-    @property
-    def last_process(self):
-        processes = list(self.file["process"].keys())
-        if len(processes) > 0:
-            return processes[-1]
-        else:
-            return
 
     def apply(
         self,

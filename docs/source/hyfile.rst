@@ -1,5 +1,5 @@
-API
-===
+HyFile
+------
 
 .. autoclass:: hystorian.io.hyFile.HyFile
     :members:

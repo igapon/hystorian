@@ -25,7 +25,11 @@ def smart_decode(b):
 
 
 def read_convert(fid, bitLen, type_):
-    return struct.unpack(type_, fid.read(bitLen))[0]
+    result = np.fromfile(fid, type_, count=bitLen)
+    if len(result) == 1:
+        return result.item()
+    else:
+        return result
 
 
 # ==================
@@ -79,7 +83,7 @@ def readARDF(FN):
             elif lastType == "XDEF":
                 _ = fid.read(4)
 
-                F[volmN]["xdef"]["sizeTable"] = read_convert(fid, 4, "I")
+                F[volmN]["xdef"]["sizeTable"] = read_convert(fid, 1, np.uint32)
                 F[volmN]["xdef"]["text"] = smart_decode(fid.read(F[volmN]["xdef"]["sizeTable"]))
 
                 _ = fid.read(lastSize - 16 - 8 - F[volmN]["xdef"]["sizeTable"])
@@ -144,12 +148,12 @@ def local_readVSET(fid, address):
     _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VSET", fid)
 
-    vset["force"] = read_convert(fid, 4, "I")
-    vset["line"] = read_convert(fid, 4, "I")
-    vset["point"] = read_convert(fid, 4, "I")
-    _ = read_convert(fid, 4, "I")
-    vset["prev"] = read_convert(fid, 8, "Q")
-    vset["next"] = read_convert(fid, 8, "Q")
+    vset["force"] = read_convert(fid, 1, np.uint32)
+    vset["line"] = read_convert(fid, 1, np.uint32)
+    vset["point"] = read_convert(fid, 1, np.uint32)
+    _ = read_convert(fid, 1, np.uint32)
+    vset["prev"] = read_convert(fid, 1, np.uint64)
+    vset["next"] = read_convert(fid, 1, np.uint64)
 
     return vset
 
@@ -222,8 +226,8 @@ def local_readDEF(fid, address, type):
     _, sizeDEF, typeDEF, _ = local_readARDFpointer(fid, -1)
     local_checkType(typeDEF, type, fid)
 
-    def_["points"] = read_convert(fid, 4, "I")
-    def_["lines"] = read_convert(fid, 4, "I")
+    def_["points"] = read_convert(fid, 1, np.uint32)
+    def_["lines"] = read_convert(fid, 1, np.uint32)
 
     if typeDEF == "IDEF":
         skip = 96
@@ -259,8 +263,8 @@ def local_readTEXT(fid, loc):
     _, _, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "TEXT", fid)
 
-    _ = read_convert(fid, 4, "I")
-    sizeNote = read_convert(fid, 4, "I")
+    _ = read_convert(fid, 1, np.uint32)
+    sizeNote = read_convert(fid, 1, np.uint32)
     txt = fid.read(sizeNote)
     txt = smart_decode(txt)
 
@@ -278,9 +282,9 @@ def local_readTOC(fid, address, _type):
         return toc
     local_checkType(lastType, _type, fid)
 
-    toc["sizeTable"] = read_convert(fid, 8, "Q")
-    toc["numbEntry"] = read_convert(fid, 4, "I")
-    toc["sizeEntry"] = read_convert(fid, 4, "I")
+    toc["sizeTable"] = read_convert(fid, 1, np.uint64)
+    toc["numbEntry"] = read_convert(fid, 1, np.uint32)
+    toc["sizeEntry"] = read_convert(fid, 1, np.uint32)
 
     if _type in ["FTOC", "IMAG", "VOLM", "NEXT", "THMB", "NSET"]:  # sizeEntry: 24
         toc["pntImag"] = []
@@ -309,19 +313,19 @@ def local_readTOC(fid, address, _type):
         if tmpSize == 0:
             pass
         elif typeEntry in ["FTOC", "IMAG", "VOLM", "NEXT", "THMB", "NSET"]:
-            lastPointer = read_convert(fid, 8, "Q")
+            lastPointer = read_convert(fid, 1, np.uint64)
         elif typeEntry in ["TTOC", "IBOX", "TOFF", "VTOC"]:
-            lastIndex = read_convert(fid, 8, "Q")
-            lastPointer = read_convert(fid, 8, "Q")
+            lastIndex = read_convert(fid, 1, np.uint64)
+            lastPointer = read_convert(fid, 1, np.uint64)
         elif typeEntry in ["VOFF"]:
-            lastPntCount = read_convert(fid, 4, "I")
-            lastLinCount = read_convert(fid, 4, "I")
-            dum = read_convert(fid, 8, "Q")
-            lastLinPoint = read_convert(fid, 8, "Q")
+            lastPntCount = read_convert(fid, 1, np.uint32)
+            lastLinCount = read_convert(fid, 1, np.uint32)
+            dum = read_convert(fid, 1, np.uint64)
+            lastLinPoint = read_convert(fid, 1, np.uint64)
         elif typeEntry in ["IDAT"]:  # IDAT
             if "sizeRead" not in locals():
                 sizeRead = (toc["sizeEntry"] - 16) // 4
-            lastData = read_convert(fid, 4 * sizeRead, f"{sizeRead}i")
+            lastData = read_convert(fid, sizeRead, np.uint32)
         else:
             raise ValueError(f"'{typeEntry}' is not recognized!")
 
@@ -357,10 +361,10 @@ def local_readARDFpointer(fid, address):
     if address != -1:
         fid.seek(address, 0)
 
-    checkCRC32 = read_convert(fid, 4, "I")
-    sizeBytes = read_convert(fid, 4, "I")
+    checkCRC32 = read_convert(fid, 1, np.uint32)
+    sizeBytes = read_convert(fid, 1, np.uint32)
     typePnt = smart_decode(fid.read(4))
-    miscNum = read_convert(fid, 4, "I")
+    miscNum = read_convert(fid, 1, np.uint32)
 
     return checkCRC32, sizeBytes, typePnt, miscNum
 
@@ -480,10 +484,10 @@ def local_readVNAM(fid, address):
     _, lastSize, lastType, _ = local_readARDFpointer(fid, -1)
     local_checkType(lastType, "VNAM", fid)
 
-    vnam["force"] = read_convert(fid, 4, "I")
-    vnam["line"] = read_convert(fid, 4, "I")
-    vnam["point"] = read_convert(fid, 4, "I")
-    vnam["sizeText"] = read_convert(fid, 4, "I")
+    vnam["force"] = read_convert(fid, 1, np.uint32)
+    vnam["line"] = read_convert(fid, 1, np.uint32)
+    vnam["point"] = read_convert(fid, 1, np.uint32)
+    vnam["sizeText"] = read_convert(fid, 1, np.uint32)
     vnam["name"] = smart_decode(fid.read(vnam["sizeText"]))
 
     remainingSize = lastSize - 16 - vnam["sizeText"] - 16
@@ -502,12 +506,11 @@ def local_readVDAT(fid, address):
     local_checkType(lastType, "VDAT", fid)
 
     for key in ["force", "line", "point", "sizeData", "forceType", "pnt0", "pnt1", "pnt2"]:
-        vdat[key] = read_convert(fid, 4, "I")
+        vdat[key] = read_convert(fid, 1, np.uint32)
 
     _ = fid.read(8)
 
-    vdat["data"] = struct.unpack(str(vdat["sizeData"]) + "i", fid.read(4 * vdat["sizeData"]))
-    # read_convert(fid, 4 * vdat["sizeData"], f"{vdat['sizeData']}i")
+    vdat["data"] = np.fromfile(fid, np.single, count=vdat["sizeData"])
     return vdat
 
 

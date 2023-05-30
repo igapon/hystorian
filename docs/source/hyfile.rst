@@ -14,6 +14,18 @@ API
     :members:
     :undoc-members:
 
+How to extract data from file?
+------------------------------
+
+simply create a new HyFile (you can use the `with ... as ...` format, if the file does not exist, it will be created) then use `extract_data`, using the path to the file to convert as input
+
+.. code-block:: python
+    from pathlib import Path
+
+    with HyFile('new_file.hdf5', 'r+') as f:
+        f.extract_data(Path('/path/to/file/to/convert/1.ibw'))
+        f.extract_data(Path('/path/to/file/to/convert/2.000'))
+        f.extract_data(Path('/path/to/file/to/convert/3.ARDF'))
 
 How to use apply and multiple_apply?
 ------------------------------------

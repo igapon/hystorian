@@ -20,6 +20,7 @@ How to extract data from file?
 simply create a new HyFile (you can use the `with ... as ...` format, if the file does not exist, it will be created) then use `extract_data`, using the path to the file to convert as input
 
 .. code-block:: python
+    
     from pathlib import Path
 
     with HyFile('new_file.hdf5', 'r+') as f:

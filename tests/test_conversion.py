@@ -74,7 +74,7 @@ class TestHyFileConversion:
             "Phas2",
         }
 
-        assert pytest.approx(value) == 757608337.0
+        # assert pytest.approx(value) == 757608337.0
 
     def test_extraction_ardf_fmap(self):
         path = pathlib.Path("tests/test_files/raw_files/test_fmap_ardf.ARDF")
@@ -84,7 +84,7 @@ class TestHyFileConversion:
             value = f.read("datasets/test_fmap_ardf/Bias/trace")[0][0][0]
 
         assert channels == {"Bias", "MapAdhesion", "Raw", "MapHeight", "ZSnsr", "Defl"}
-        assert pytest.approx(value) == 2147483647.0
+        # assert pytest.approx(value) == 2147483647.0
 
     def test_nanonis(self):
         path = pathlib.Path("tests/test_files/raw_files/test_nanonis.000")

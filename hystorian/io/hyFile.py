@@ -3,7 +3,7 @@ import inspect
 import re
 import types
 import warnings
-from collections import UserString
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, KeysView, Optional, overload
@@ -18,12 +18,69 @@ from .utils import HyConvertedData
 h5pyType = KeysView | h5py.Group | h5py.Dataset | h5py.Datatype
 
 
-class HyPath(UserString):
+class HyPath:
+    def __init__(self, path: str):
+        self._path = path
+
+    @property
+    def path(self):
+        return self._path
+
     def __str__(self):
-        return self.data
+        return self._path
 
     def __repr__(self):
-        return f"MyString({self.data!r})"
+        return f"HyPath({self._path!r})"
+
+
+class HyApply:
+    def __init__(self, file, func: Callable, args: tuple[Any], kwargs: dict[str, Any]):
+        self.file = file
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def apply(self):
+        return (
+            self.func(
+                *self._deeplist_translate(list(self.args), self._read),
+                **self._deepdict_translate(self.kwargs, self._read),
+            ),
+            self._deeplist_translate(list(self.args), self._path),
+            self._deepdict_translate(self.kwargs, self._path),
+        )
+
+    def _deeplist_translate(self, iter_: list[Any], f: Callable):
+        for i, item in enumerate(iter_):
+            if isinstance(item, list):
+                self._deeplist_translate(item, f)
+            else:
+                if isinstance(item, HyPath):
+                    iter_[i] = f(item)
+                else:
+                    pass
+        return tuple(iter_)
+
+    def _read(self, arg):
+        return self.file.read(arg)
+
+    def _path(self, arg):
+        if isinstance(arg, HyPath):
+            return arg.path
+        else:
+            return arg
+
+    def _deepdict_translate(self, args, f):
+        translated = {}
+        for key, val in args.items():
+            if isinstance(val, list):
+                translated[key] = self._deeplist_translate(val, self._read)
+            else:
+                if isinstance(val, HyPath):
+                    translated[key] = f(val)
+                else:
+                    translated[key] = val
+        return translated
 
 
 class HyFile:
@@ -162,18 +219,18 @@ class HyFile:
         pass
 
     @overload
-    def read(self, path: str) -> list[str]:
+    def read(self, path: str | HyPath) -> list[str]:
         pass
 
     @overload
-    def read(self, path: str) -> h5py.Datatype:
+    def read(self, path: str | HyPath) -> h5py.Datatype:
         pass
 
     @overload
-    def read(self, path: str) -> npt.ArrayLike:
+    def read(self, path: str | HyPath) -> npt.ArrayLike:
         pass
 
-    def read(self, path: Optional[str] = None) -> list[str] | h5py.Datatype | npt.ArrayLike:
+    def read(self, path: Optional[str | HyPath] = None) -> list[str] | h5py.Datatype | npt.ArrayLike:
         """Wrapper around the __getitem__ of h5py. Directly returns the keys of the sub-groups if the path lead to an h5py.Group, otherwise directly load the dataset.
         This allows to get a list of keys to the folders without calling .keys(), and to the data without [()] therefore the way to call the keys or the data are the same.
         And therefore the user does not need to change the call between .keys() and [()] to navigate the hierarchical structure.
@@ -191,22 +248,25 @@ class HyFile:
         if path is None:
             return list(self.file.keys())
 
+        if isinstance(path, HyPath):
+            path = path.path
+
+        current = self.file[path]
+        if isinstance(current, h5py.Group):
+            return list(current.keys())
+        if isinstance(current, h5py.Datatype):
+            return current
         else:
-            current = self.file[path]
-            if isinstance(current, h5py.Group):
-                return list(current.keys())
-            if isinstance(current, h5py.Datatype):
-                return current
-            else:
-                return current[()]
+            return current[()]
 
     def apply(
         self,
         function: Callable,
-        inputs: list[str] | str,
+        /,
+        *args: Any,
         output_names: Optional[list[str] | str] = None,
         increment_proc: bool = True,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ):
         """apply allows to call a function and store all the inputs and outputs in the hdf5 file with the raw data.
 
@@ -214,13 +274,15 @@ class HyFile:
         ----------
         function : Callable
             function used to transform the data. Result of the function will be stored in process/XXX-<function-name>, where XXX is an incrementing number for each already existing process.
-        inputs : list[str] | str
-            path into the hdf5 to the input of the function, most of the time it should be the data that need processing.
+        *args : Any
+            All the positional arguments for the above function. If an HyPath is present in args, then self.file.read() will be called for this argument.
         output_names : Optional[list[str]  |  str], optional
             Name to be given to the result of the function. The number of names should be the same as the number of outputs of the function passed,
-            othewise a ValueError will be raised, if None is passed, the name of the data passed in inputs will be used, by default None.
+            othewise a ValueError will be raised, if None is passed, the name of the function will be used, by default None.
         increment_proc : bool, optional
             if a process/XXX-<function-name> already exist and increment_proc is set to true, the result will be save in the existing folder, otherwise it will generated a new folder, by default True
+        **kwargs : Any
+            All the keyword arguments for the above function. If an HyPath is present in kwargs, then self.file.read() will be called for this argument.
         """
 
         def convert_to_list(inputs):
@@ -228,20 +290,11 @@ class HyFile:
                 return inputs
             return [inputs]
 
-        inputs = convert_to_list(inputs)
-
         if output_names is None:
-            output_names = inputs[0].rsplit("/", 1)[1]
+            output_names = function.__name__
         output_names = convert_to_list(output_names)
 
-        data_inputs = [np.array(self.read(input)) for input in inputs]
-        for key, value in kwargs.items():
-            if isinstance(value, HyPath):
-                kwargs[key] = self.read(value.data)
-            else:
-                kwargs[key] = value
-
-        result = function(*data_inputs, **kwargs)
+        result, args, kwargs = HyApply(self, function, args, kwargs).apply()
 
         if result is None:
             return None
@@ -263,30 +316,32 @@ class HyFile:
         for name, data in zip(output_names, result):
             self._create_dataset((f"process/{out_folder_location}/{name}", data))
 
-            self._write_generic_attributes(f"process/{out_folder_location}/{name}", inputs, name, function)
+            self._write_generic_attributes(
+                f"process/{out_folder_location}/{name}",
+                args,
+                output_name=name,
+                function=function,
+            )
             self._write_kwargs_as_attributes(
-                f"process/{out_folder_location}/{name}", function, kwargs, first_kwarg=len(inputs)
+                f"process/{out_folder_location}/{name}", function, kwargs, first_kwarg=len(args)
             )
 
-    def multiple_apply(self, function, paths, output_names=None, smart=False, **kwargs):
-        paths = self.path_search(paths)
+    def multiple_apply(self, function, /, list_args, output_names=None, smart=False, **kwargs):
+        list_args = [self.path_search(args) for args in list_args]
         increment_proc = True
         if output_names is None:
-            output_names = [path[0].rsplit("/", 1)[1] for path in paths]
+            output_names = [f"{function.__name__}_{i}" for (i, _) in enumerate(list_args)]
 
-        for path, output in zip(paths, output_names):
-            self.apply(function, path, increment_proc=increment_proc, output_names=output, **kwargs)
+        for args, output in zip(list_args, output_names):
+            self.apply(function, *args, increment_proc=increment_proc, output_names=output, **kwargs)
             increment_proc = False
 
     def _generate_process_folder_name(self, num_proc: int, function: Callable) -> str:
         return f"{str(num_proc).zfill(3)}-{function.__name__}"
 
     def _write_generic_attributes(
-        self, out_folder_location: str, in_paths: list[str] | str, output_name: str, function: Callable
+        self, out_folder_location: str, args: tuple[Any], output_name: str, function: Callable
     ) -> None:
-        if not isinstance(in_paths, list):
-            in_paths = [in_paths]
-
         operation_name = out_folder_location.split("/")[1]
         new_attrs = {
             "path": out_folder_location + output_name,
@@ -301,9 +356,12 @@ class HyFile:
 
         new_attrs["operation number"] = operation_name.split("-")[0]
         new_attrs["time"] = str(datetime.now())
-        new_attrs["source"] = in_paths
+        for i, arg in enumerate(args):
+            new_attrs[f"args_{i}"] = arg
 
         for k, v in new_attrs.items():
+            if isinstance(v, HyPath):
+                v = v.path
             self.attrs[out_folder_location] = (k, v)
 
     def _write_kwargs_as_attributes(
@@ -383,12 +441,13 @@ class HyFile:
         if not isinstance(criterion, list):
             criterion = [criterion]
 
+        criterion = [crit.path if isinstance(crit, HyPath) else crit for crit in criterion]
         all_path = self._find_paths_of_all_subgroups()
         correct_path = []
         for criteria in criterion:
             for path in all_path:
                 if fnmatch.fnmatch(path, criteria):
-                    correct_path.append(path)
+                    correct_path.append(HyPath(path))
 
         return correct_path
 

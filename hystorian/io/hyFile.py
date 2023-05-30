@@ -34,21 +34,22 @@ class HyPath:
 
 
 class HyApply:
-    def __init__(self, file, func: Callable, args: tuple[Any], kwargs: dict[str, Any]):
+    def __init__(self, file, func: Callable, args: tuple[Any], kwargs: dict[str, Any] = {}):
         self.file = file
         self.func = func
         self.args = args
         self.kwargs = kwargs
 
     def apply(self):
-        return (
-            self.func(
-                *self._deeplist_translate(list(self.args), self._read),
-                **self._deepdict_translate(self.kwargs, self._read),
-            ),
-            self._deeplist_translate(list(self.args), self._path),
-            self._deepdict_translate(self.kwargs, self._path),
+        result = self.func(
+            *self._deeplist_translate(list(deepcopy(self.args)), self._read),
+            **self._deepdict_translate(self.kwargs, self._read),
         )
+
+        result_args = self._deeplist_translate(list(self.args), self._path)
+        result_kwargs = (self._deepdict_translate(self.kwargs, self._path),)
+
+        return result, result_args, result_kwargs
 
     def _deeplist_translate(self, iter_: list[Any], f: Callable):
         for i, item in enumerate(iter_):
@@ -294,7 +295,7 @@ class HyFile:
             output_names = function.__name__
         output_names = convert_to_list(output_names)
 
-        result, args, kwargs = HyApply(self, function, args, kwargs).apply()
+        result, list_args, list_kwargs = HyApply(self, function, args, kwargs).apply()
 
         if result is None:
             return None
@@ -318,22 +319,21 @@ class HyFile:
 
             self._write_generic_attributes(
                 f"process/{out_folder_location}/{name}",
-                args,
+                list_args,
                 output_name=name,
                 function=function,
             )
             self._write_kwargs_as_attributes(
-                f"process/{out_folder_location}/{name}", function, kwargs, first_kwarg=len(args)
+                f"process/{out_folder_location}/{name}", function, list_kwargs, first_kwarg=len(list_args)
             )
 
     def multiple_apply(self, function, /, list_args, output_names=None, smart=False, **kwargs):
-        list_args = [self.path_search(args) for args in list_args]
         increment_proc = True
         if output_names is None:
             output_names = [f"{function.__name__}_{i}" for (i, _) in enumerate(list_args)]
 
         for args, output in zip(list_args, output_names):
-            self.apply(function, *args, increment_proc=increment_proc, output_names=output, **kwargs)
+            self.apply(function, args, increment_proc=increment_proc, output_names=output, **kwargs)
             increment_proc = False
 
     def _generate_process_folder_name(self, num_proc: int, function: Callable) -> str:
@@ -362,6 +362,7 @@ class HyFile:
         for k, v in new_attrs.items():
             if isinstance(v, HyPath):
                 v = v.path
+            print(k, v)
             self.attrs[out_folder_location] = (k, v)
 
     def _write_kwargs_as_attributes(

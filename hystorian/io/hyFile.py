@@ -395,7 +395,7 @@ class HyFile:
         for k, v in attr_dict.items():
             self.attrs[path] = (k, v)
 
-    def extract_data(self, path: str | Path) -> None:
+    def extract_data(self, path: str | Path, **kwargs) -> None:
         """Extract the data, metadata and attributes from a file given by path.
         Currently supported files are:
 
@@ -417,7 +417,7 @@ class HyFile:
         if isinstance(path, str):
             path = Path(path)
 
-        extracted = HyExtractor.extract(path)
+        extracted = HyExtractor.extract(path, **kwargs)
 
         self._write_extracted_data(path, extracted)
 
@@ -546,4 +546,5 @@ class HyFile:
         self._require_group(f"metadata/{path.stem}")
         self.file[f"metadata/{path.stem}"].create_dataset("raw_metadata", data=str(extracted_values.metadata))
         self._generate_deep_attributes(extracted_values.metadata, self.file[f"metadata/{path.stem}"])
+
         self._generate_deep_attributes(extracted_values.attributes, self.file[f"datasets/{path.stem}"])

@@ -49,7 +49,7 @@ def remove_converter(name: str):
         extractor_registery.pop(name)
 
 
-def extract(filepath, key=None):
+def extract(filepath, key=None, **kwargs):
     if key is None:
         extractor_lst = []
         for key, value in extractor_registery.items():
@@ -64,10 +64,10 @@ def extract(filepath, key=None):
                 f"Multiple file conversion were found for {filepath}.\n Following extractors were found : {extractor_lst}. \n please specify the extractor using the 'key' argument."
             )
 
-        result = extractor_registery[extractor_lst[0]][1](filepath)
+        result = extractor_registery[extractor_lst[0]][1](filepath, **kwargs)
         return result
     else:
-        result = extractor_registery[key][1](filepath)
+        result = extractor_registery[key][1](filepath, **kwargs)
         return result
 
 

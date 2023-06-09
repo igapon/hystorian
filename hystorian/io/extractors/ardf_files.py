@@ -5,7 +5,7 @@ from pathlib import Path
 import chardet
 import numpy as np
 
-from .utils import HyConvertedData, conversion_metadata
+from ..utils import HyConvertedData, conversion_metadata
 
 """
 Following code was translated from the original Matlab source code written by Matthew Poss available here: https://ch.mathworks.com/matlabcentral/fileexchange/80212-ardf-to-matlab/?s_tid=LandingPageTabfx
@@ -514,7 +514,7 @@ def local_readVDAT(fid, address):
     return vdat
 
 
-def extract_ardf(filename: Path) -> HyConvertedData:
+def extract(filename: Path) -> HyConvertedData:
     """Extract datas based on original Matlab source code written by Matthew Poss available here: https://ch.mathworks.com/matlabcentral/fileexchange/80212-ardf-to-matlab/?s_tid=LandingPageTabfx
 
     Parameters

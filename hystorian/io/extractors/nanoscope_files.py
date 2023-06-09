@@ -3,7 +3,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from .utils import HyConvertedData, conversion_metadata, is_number
+from ..utils import HyConvertedData, conversion_metadata, is_number
 
 
 def load_nanoscope(path):
@@ -83,7 +83,7 @@ def conversion_units(dat):
     return dat
 
 
-def extract_nanoscope(path: Path) -> HyConvertedData:
+def extract(path: Path) -> HyConvertedData:
     """extract_nanoscope to convert Nanonis files to hdf5
 
     Parameters

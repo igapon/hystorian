@@ -5,13 +5,13 @@ import h5py
 import numpy as np
 from igor2 import binarywave
 
-from .utils import HyConvertedData, conversion_metadata
+from ..utils import HyConvertedData, conversion_metadata
 
 # ==========================================
 # IBW conversion
 
 
-def extract_ibw(filename: Path) -> HyConvertedData:
+def extract(filename: Path) -> HyConvertedData:
     """extract_ibw uses igor2 (https://github.com/AFM-analysis/igor2/) to convert ibw files from Asylum AFM.
 
     Parameters

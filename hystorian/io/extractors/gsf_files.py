@@ -4,11 +4,11 @@ from typing import Any
 import h5py
 import numpy as np
 
-from .utils import HyConvertedData
+from ..utils import HyConvertedData
 
 
-def extract_gsf(filename: Path) -> HyConvertedData:
-    """extract_gsf Read a Gwyddion Simple Field 1.0 file format
+def extract(filename: Path) -> HyConvertedData:
+    """extract Read a Gwyddion Simple Field 1.0 file format
     http://gwyddion.net/documentation/user-guide-en/gsf.html
 
     Parameters

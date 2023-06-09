@@ -326,10 +326,10 @@ class HyFile:
                 f"process/{out_folder_location}/{name}", function, list_kwargs, first_kwarg=len(list_args)
             )
 
-    def multiple_apply(self, function, /, list_args, output_names=None, smart=False, **kwargs):
+    def multiple_apply(self, function, list_args, /, output_names=None, smart=False, **kwargs):
         increment_proc = True
         if output_names is None:
-            output_names = [f"{function.__name__}_{i}" for (i, _) in enumerate(list_args)]
+            output_names = [arg.path.split("/")[-1] for arg in list_args]
 
         for args, output in zip(list_args, output_names):
             self.apply(function, args, increment_proc=increment_proc, output_names=output, **kwargs)

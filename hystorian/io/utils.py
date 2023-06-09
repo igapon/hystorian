@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -33,3 +35,7 @@ def conversion_metadata(value):
             return float(value)
     else:
         return value.strip()
+
+
+def check_extension(regex: str, filepath: Path) -> bool:
+    return re.match(regex, filepath.suffix) is not None

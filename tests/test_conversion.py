@@ -52,7 +52,7 @@ class TestHyFileConversion:
 
             gsfFile.close()
 
-            assert f.read(f"metadata/{path.stem}/XReal") == float(metadata["XReal"])
+            assert f[f"metadata/{path.stem}"].attrs["XReal"] == float(metadata["XReal"])
 
     def test_extraction_ardf_sspfm(self):
         path = pathlib.Path("tests/test_files/raw_files/test_sspfm_ardf.ARDF")

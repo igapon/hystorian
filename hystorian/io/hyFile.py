@@ -1,6 +1,5 @@
 import fnmatch
 import inspect
-import re
 import types
 import warnings
 from copy import deepcopy
@@ -12,7 +11,7 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 
-from . import ardf_files, gsf_files, ibw_files, nanoscope_files
+from . import HyExtractor
 from .utils import HyConvertedData
 
 h5pyType = KeysView | h5py.Group | h5py.Dataset | h5py.Datatype
@@ -47,7 +46,7 @@ class HyApply:
         )
 
         result_args = self._deeplist_translate(list(self.args), self._path)
-        result_kwargs = (self._deepdict_translate(self.kwargs, self._path),)
+        result_kwargs = self._deepdict_translate(self.kwargs, self._path)
 
         return result, result_args, result_kwargs
 
@@ -415,30 +414,10 @@ class HyFile:
         TypeError
             If the file you pass through path does not have a conversion function, will raise an error.
         """
-        conversion_functions = {
-            ".ardf": ardf_files.extract_ardf,
-            ".gsf": gsf_files.extract_gsf,
-            ".ibw": ibw_files.extract_ibw,
-        }
-
         if isinstance(path, str):
             path = Path(path)
-        suffix = path.suffix.lower()
 
-        if suffix in conversion_functions:
-            extracted = conversion_functions[suffix](path)
-        # Nanoscope files use strange suffix (.000, .001, etc..) so we need to regex it.
-        elif re.match(".\d{3}", suffix) is not None:
-            try:
-                extracted = nanoscope_files.extract_nanoscope(path)
-            except:
-                raise TypeError(
-                    f"Your file is ending with three digits, but is not a Nanoscope file, please change the extension to the correct one."
-                )
-
-        else:
-            raise TypeError(f"{suffix} file doesn't have a conversion function.")
-
+        extracted = HyExtractor.extract(path)
         self._write_extracted_data(path, extracted)
 
     def path_search(self, criterion: str | list[str] = "*"):

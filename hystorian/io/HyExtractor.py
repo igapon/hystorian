@@ -49,22 +49,27 @@ def remove_converter(name: str):
         extractor_registery.pop(name)
 
 
-def extract(filepath):
-    extractor_lst = []
-    for value in extractor_registery.values():
-        check, f_convert = value
-        if check(filepath):
-            extractor_lst.append(f_convert)
+def extract(filepath, key=None):
+    if key is None:
+        extractor_lst = []
+        for key, value in extractor_registery.items():
+            check, f_convert = value
+            if check(filepath):
+                extractor_lst.append(key)
+                convertor = f_convert
 
-    if len(extractor_lst) == 0:
-        raise ValueError(f"No conversion function was found for {filepath}.")
-    if len(extractor_lst) > 1:
-        warnings.warn(
-            "Multiple conversion functions were found for this file. {converter_lst[0].__name__} will be used.",
-            category=UserWarning,
-        )
+        if len(extractor_lst) == 0:
+            raise ValueError(f"No conversion function was found for {filepath}.")
+        if len(extractor_lst) > 1:
+            raise ValueError(
+                f"Multiple file conversion were found for {filepath}.\n Following extractors were found : {extractor_lst}. \n please specify the extractor using the 'key' argument."
+            )
 
-    return extractor_lst[0](filepath)
+        result = convertor(filepath)
+        return result
+    else:
+        result = extractor_registery[key][1](filepath)
+        return result
 
 
 initialize()

@@ -528,11 +528,11 @@ def extract(filename: Path) -> HyConvertedData:
     """
 
     gc.enable()
-
     F = readARDF(filename)
     data = {}
     attributes = {}
     metadata = F["Notes"]
+
     for idx, channelName in enumerate(F["imageList"]):
         data[channelName] = F["y"][idx]
 

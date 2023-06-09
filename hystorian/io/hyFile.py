@@ -1,5 +1,5 @@
-import fnmatch
 import inspect
+import re
 import types
 import warnings
 from copy import deepcopy
@@ -418,6 +418,7 @@ class HyFile:
             path = Path(path)
 
         extracted = HyExtractor.extract(path)
+
         self._write_extracted_data(path, extracted)
 
     def path_search(self, criterion: str | list[str] = "*"):
@@ -429,7 +430,7 @@ class HyFile:
         correct_path = []
         for criteria in criterion:
             for path in all_path:
-                if fnmatch.fnmatch(path, criteria):
+                if re.match(criteria, path) is not None:
                     correct_path.append(HyPath(path))
 
         return correct_path
@@ -543,6 +544,6 @@ class HyFile:
         self._generate_deep_groups(extracted_values.data, self.file[f"datasets/{path.stem}"])
 
         self._require_group(f"metadata/{path.stem}")
+        self.file[f"metadata/{path.stem}"].create_dataset("raw_metadata", data=str(extracted_values.metadata))
         self._generate_deep_attributes(extracted_values.metadata, self.file[f"metadata/{path.stem}"])
-
         self._generate_deep_attributes(extracted_values.attributes, self.file[f"datasets/{path.stem}"])

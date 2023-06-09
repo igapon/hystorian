@@ -53,10 +53,9 @@ def extract(filepath, key=None):
     if key is None:
         extractor_lst = []
         for key, value in extractor_registery.items():
-            check, f_convert = value
+            check, _ = value
             if check(filepath):
                 extractor_lst.append(key)
-                convertor = f_convert
 
         if len(extractor_lst) == 0:
             raise ValueError(f"No conversion function was found for {filepath}.")
@@ -65,7 +64,7 @@ def extract(filepath, key=None):
                 f"Multiple file conversion were found for {filepath}.\n Following extractors were found : {extractor_lst}. \n please specify the extractor using the 'key' argument."
             )
 
-        result = convertor(filepath)
+        result = extractor_registery[extractor_lst[0]][1](filepath)
         return result
     else:
         result = extractor_registery[key][1](filepath)

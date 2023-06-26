@@ -397,7 +397,7 @@ class HyFile:
         for k, v in attr_dict.items():
             self.attrs[path] = (k, v)
 
-    def extract_data(self, path: str | Path, **kwargs) -> None:
+    def extract_data(self, path: str | Path, ignore_if_exist=True, **kwargs) -> None:
         """Extract the data, metadata and attributes from a file given by path.
         Currently supported files are:
 
@@ -418,6 +418,12 @@ class HyFile:
         """
         if isinstance(path, str):
             path = Path(path)
+
+        if ignore_if_exist and Path.exists(path):
+            warnings.warn(
+                f"File {path} already exists, ignoring it. If you want to overwrite it, set ignore_if_exist=False."
+            )
+            return
 
         extracted = HyExtractor.extract(path, **kwargs)
 

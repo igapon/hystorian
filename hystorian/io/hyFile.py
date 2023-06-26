@@ -210,7 +210,7 @@ class HyFile:
         """returns a string which is the path to the last process in the hdf5 file."""
         processes = list(self.file["process"].keys())
         if len(processes) > 0:
-            return processes[-1]
+            return f"process/{processes[-1]}"
         else:
             return
 

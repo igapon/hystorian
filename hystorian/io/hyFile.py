@@ -188,7 +188,9 @@ class HyFile:
 
         return True
 
-    def __getitem__(self, path: str = "") -> h5pyType:
+    def __getitem__(self, path: str | HyPath = "") -> h5pyType:
+        if isinstance(path, HyPath):
+            path = path.path
         if path == "":
             return self.file.keys()
         else:
